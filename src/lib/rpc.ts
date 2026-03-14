@@ -42,6 +42,14 @@ export async function getServices(type?: string): Promise<unknown[]> {
   return rpc<unknown[]>("clw_getServices", type ? [type] : []);
 }
 
+export async function getTransactionByHash(hash: string): Promise<Record<string, unknown> | null> {
+  return rpc<Record<string, unknown> | null>("clw_getTransactionByHash", [hash]);
+}
+
+export async function getTransactionsByAddress(address: string, limit = 50, offset = 0): Promise<unknown[]> {
+  return rpc<unknown[]>("clw_getTransactionsByAddress", [address, limit, offset]);
+}
+
 export async function getHealth(): Promise<Record<string, unknown>> {
   const url = isServer ? `${DIRECT_RPC_URL}/health` : "/api/health";
   const res = await fetch(url, { cache: "no-store" });

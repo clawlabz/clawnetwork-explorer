@@ -1,8 +1,17 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getBalance, getNonce, getAgent, getReputation, formatCLW } from "@/lib/rpc";
-import { ArrowLeft, User, Coins, Shield } from "lucide-react";
+import { getBalance, getNonce, getAgent, getReputation, getTransactionsByAddress, formatCLW, truncateAddress, toHexAddress } from "@/lib/rpc";
+import { ArrowLeft, User, Coins, Shield, ArrowRightLeft } from "lucide-react";
+
+const TX_TYPE_NAMES: Record<number, string> = {
+  0: "AgentRegister",
+  1: "TokenTransfer",
+  2: "TokenCreate",
+  3: "TokenMintTransfer",
+  4: "ReputationAttest",
+  5: "ServiceRegister",
+};
 
 type Props = { params: Promise<{ address: string }> };
 
@@ -18,13 +27,15 @@ export default async function AddressPage({ params }: Props) {
   let nonce = 0;
   let agent: Record<string, unknown> | null = null;
   let reputation: unknown[] = [];
+  let transactions: Record<string, unknown>[] = [];
 
   try {
-    [balance, nonce, agent, reputation] = await Promise.all([
+    [balance, nonce, agent, reputation, transactions] = await Promise.all([
       getBalance(address),
       getNonce(address),
       getAgent(address),
       getReputation(address),
+      getTransactionsByAddress(address) as Promise<Record<string, unknown>[]>,
     ]);
   } catch (e) {
     console.error("Failed to fetch address data:", e);
@@ -95,7 +106,7 @@ export default async function AddressPage({ params }: Props) {
 
         {/* Reputation */}
         {reputation.length > 0 && (
-          <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
+          <div className="mb-8 rounded-xl border border-border bg-surface/50 overflow-hidden">
             <div className="px-6 py-4 border-b border-border">
               <h2 className="font-semibold">Reputation Attestations ({reputation.length})</h2>
             </div>
@@ -104,6 +115,86 @@ export default async function AddressPage({ params }: Props) {
             </div>
           </div>
         )}
+
+        {/* Transaction History */}
+        <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <h2 className="font-semibold flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-primary" /> Transaction History
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left">TX Hash</th>
+                  <th className="px-6 py-3 text-left">Type</th>
+                  <th className="px-6 py-3 text-left">From</th>
+                  <th className="px-6 py-3 text-left">To</th>
+                  <th className="px-6 py-3 text-left">Amount</th>
+                  <th className="px-6 py-3 text-left">Block</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transactions.length === 0 ? (
+                  <tr><td colSpan={6} className="px-6 py-8 text-center text-muted">No transactions yet</td></tr>
+                ) : (
+                  transactions.map((tx, i) => {
+                    const txHash = toHexAddress(tx.hash);
+                    const fromAddr = toHexAddress(tx.from);
+                    const toAddr = toHexAddress(tx.to);
+                    const txType = tx.tx_type as number | undefined;
+                    const typeName = (tx.typeName as string) || (txType !== undefined ? TX_TYPE_NAMES[txType] : undefined) || `Type ${txType ?? "?"}`;
+                    const amount = tx.amount as string | undefined;
+                    const blockHeight = tx.block_height as number | undefined;
+                    return (
+                      <tr key={txHash || i} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
+                        <td className="px-6 py-3 font-mono text-xs">
+                          {txHash ? (
+                            <a href={`/tx/${txHash}`} className="text-primary hover:underline">
+                              {truncateAddress(txHash)}
+                            </a>
+                          ) : "—"}
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                            {typeName}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 font-mono text-muted text-xs">
+                          {fromAddr ? (
+                            <a href={`/address/${fromAddr}`} className="text-primary/70 hover:text-primary hover:underline">
+                              {truncateAddress(fromAddr)}
+                            </a>
+                          ) : "—"}
+                        </td>
+                        <td className="px-6 py-3 font-mono text-muted text-xs">
+                          {toAddr ? (
+                            <a href={`/address/${toAddr}`} className="text-primary/70 hover:text-primary hover:underline">
+                              {truncateAddress(toAddr)}
+                            </a>
+                          ) : "—"}
+                        </td>
+                        <td className="px-6 py-3 font-mono text-xs">
+                          {amount ? (
+                            <span className="text-primary">{formatCLW(amount)} CLW</span>
+                          ) : "—"}
+                        </td>
+                        <td className="px-6 py-3">
+                          {blockHeight !== undefined ? (
+                            <a href={`/block/${blockHeight}`} className="text-primary hover:underline font-mono text-xs">
+                              {blockHeight.toLocaleString()}
+                            </a>
+                          ) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </main>
       <Footer />
     </>

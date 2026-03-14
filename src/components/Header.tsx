@@ -14,7 +14,9 @@ export function Header() {
     if (!q) return;
     if (/^\d+$/.test(q)) {
       router.push(`/block/${q}`);
-    } else if (q.length === 64 || q.length >= 40) {
+    } else if (q.length === 64 && /^[0-9a-fA-F]+$/.test(q)) {
+      router.push(`/tx/${q}`);
+    } else if (q.length >= 40) {
       router.push(`/address/${q}`);
     }
     setQuery("");
@@ -42,7 +44,7 @@ export function Header() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by Address / Block Height"
+            placeholder="Search by Address / TX Hash / Block Height"
             className="w-full rounded-lg border border-border bg-surface pl-10 pr-4 py-2 text-sm text-text placeholder:text-muted/50 focus:border-primary focus:outline-none"
           />
         </form>

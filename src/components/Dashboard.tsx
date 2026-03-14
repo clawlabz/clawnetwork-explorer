@@ -2,12 +2,29 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getHealth, getBlockNumber, getBlock, truncateAddress, toHexAddress } from "@/lib/rpc";
-import { Layers, Clock, Users, Activity } from "lucide-react";
+import { Layers, Clock, Users, Activity, ArrowRightLeft } from "lucide-react";
+
+const TX_TYPE_NAMES: Record<number, string> = {
+  0: "AgentRegister",
+  1: "TokenTransfer",
+  2: "TokenCreate",
+  3: "TokenMintTransfer",
+  4: "ReputationAttest",
+  5: "ServiceRegister",
+};
+
+interface TransactionInfo {
+  hash: unknown;
+  tx_type: number;
+  from: unknown;
+  to: unknown;
+  timestamp: number;
+}
 
 interface BlockInfo {
   height: number;
   timestamp: number;
-  transactions: unknown[];
+  transactions: TransactionInfo[];
   validator: string;
   hash: string;
 }
@@ -124,6 +141,81 @@ export function Dashboard() {
               {latestBlocks.length === 0 && (
                 <tr><td colSpan={4} className="px-6 py-8 text-center text-muted">No blocks yet</td></tr>
               )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Latest Transactions */}
+      <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="font-semibold flex items-center gap-2">
+            <ArrowRightLeft className="h-4 w-4 text-primary" /> Latest Transactions
+          </h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
+                <th className="px-6 py-3 text-left">Hash</th>
+                <th className="px-6 py-3 text-left">Type</th>
+                <th className="px-6 py-3 text-left">From</th>
+                <th className="px-6 py-3 text-left">To</th>
+                <th className="px-6 py-3 text-left">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                const allTxs = latestBlocks.flatMap((block) =>
+                  (block.transactions || []).map((tx) => ({
+                    ...tx,
+                    timestamp: tx.timestamp || block.timestamp,
+                  }))
+                );
+                if (allTxs.length === 0) {
+                  return (
+                    <tr><td colSpan={5} className="px-6 py-8 text-center text-muted">No transactions yet</td></tr>
+                  );
+                }
+                return allTxs.slice(0, 20).map((tx, i) => {
+                  const txHash = toHexAddress(tx.hash);
+                  const fromAddr = toHexAddress(tx.from);
+                  const toAddr = toHexAddress(tx.to);
+                  return (
+                    <tr key={txHash || i} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
+                      <td className="px-6 py-3 font-mono text-xs">
+                        {txHash ? (
+                          <a href={`/tx/${txHash}`} className="text-primary hover:underline">
+                            {truncateAddress(txHash)}
+                          </a>
+                        ) : "—"}
+                      </td>
+                      <td className="px-6 py-3">
+                        <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                          {TX_TYPE_NAMES[tx.tx_type] ?? `Type ${tx.tx_type}`}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 font-mono text-muted text-xs">
+                        {fromAddr ? (
+                          <a href={`/address/${fromAddr}`} className="text-primary/70 hover:text-primary hover:underline">
+                            {truncateAddress(fromAddr)}
+                          </a>
+                        ) : "—"}
+                      </td>
+                      <td className="px-6 py-3 font-mono text-muted text-xs">
+                        {toAddr ? (
+                          <a href={`/address/${toAddr}`} className="text-primary/70 hover:text-primary hover:underline">
+                            {truncateAddress(toAddr)}
+                          </a>
+                        ) : "—"}
+                      </td>
+                      <td className="px-6 py-3 text-muted text-xs">
+                        {tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleTimeString() : "—"}
+                      </td>
+                    </tr>
+                  );
+                });
+              })()}
             </tbody>
           </table>
         </div>
