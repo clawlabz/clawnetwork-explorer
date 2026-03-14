@@ -1,17 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { getHealth, getBlockNumber, getBlock, truncateAddress, toHexAddress, parseBlockTransaction, formatCLW, type ParsedTx } from "@/lib/rpc";
+import { useEffect, useState, useRef } from "react";
+import { getHealth, getBlockNumber, getBlock, truncateAddress, toHexAddress, parseBlockTransaction, formatCLAW, TX_TYPE_NAMES, type ParsedTx } from "@/lib/rpc";
 import { Layers, Clock, Users, Activity, ArrowRightLeft } from "lucide-react";
-
-const TX_TYPE_NAMES: Record<number, string> = {
-  0: "AgentRegister",
-  1: "TokenTransfer",
-  2: "TokenCreate",
-  3: "TokenMintTransfer",
-  4: "ReputationAttest",
-  5: "ServiceRegister",
-};
 
 interface BlockInfo {
   height: number;
@@ -25,8 +16,11 @@ export function Dashboard() {
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [latestBlocks, setLatestBlocks] = useState<BlockInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchDataRef = useRef<(() => Promise<void>) | undefined>(undefined);
+
+  fetchDataRef.current = async () => {
     try {
       const [h, height] = await Promise.all([getHealth(), getBlockNumber()]);
       setHealth(h);
@@ -38,18 +32,21 @@ export function Dashboard() {
       }
       const blocks = (await Promise.all(blockPromises)).filter(Boolean) as unknown as BlockInfo[];
       setLatestBlocks(blocks);
+      setError(null);
     } catch (e) {
-      console.error("Failed to fetch data:", e);
+      setError(e instanceof Error ? e.message : "Failed to fetch data");
+      console.error("Failed to fetch data:", e instanceof Error ? e.message : e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 10000);
+    fetchDataRef.current?.();
+    const interval = setInterval(() => fetchDataRef.current?.(), 10000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
@@ -73,6 +70,12 @@ export function Dashboard() {
 
   return (
     <div className="space-y-8">
+      {error && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-400 mb-6">
+          Failed to connect to node: {error}
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((stat, i) => {
@@ -121,12 +124,12 @@ export function Dashboard() {
                         <a href={`/address/${addr}`} className="text-primary/70 hover:text-primary hover:underline">
                           {truncateAddress(addr)}
                         </a>
-                      ) : "—";
+                      ) : "\u2014";
                     })()}
                   </td>
                   <td className="px-6 py-3">{block.transactions?.length || 0}</td>
                   <td className="px-6 py-3 text-muted text-xs">
-                    {block.timestamp ? new Date(block.timestamp * 1000).toLocaleTimeString() : "—"}
+                    {block.timestamp ? new Date(block.timestamp * 1000).toLocaleTimeString() : "\u2014"}
                   </td>
                 </tr>
               ))}
@@ -154,6 +157,7 @@ export function Dashboard() {
                 <th className="px-6 py-3 text-left">From</th>
                 <th className="px-6 py-3 text-left">To</th>
                 <th className="px-6 py-3 text-left">Amount</th>
+                <th className="px-6 py-3 text-left">Time</th>
               </tr>
             </thead>
             <tbody>
@@ -165,7 +169,7 @@ export function Dashboard() {
                 );
                 if (allTxs.length === 0) {
                   return (
-                    <tr><td colSpan={5} className="px-6 py-8 text-center text-muted">No transactions yet</td></tr>
+                    <tr><td colSpan={6} className="px-6 py-8 text-center text-muted">No transactions yet</td></tr>
                   );
                 }
                 return allTxs.slice(0, 20).map((tx, i) => (
@@ -191,21 +195,22 @@ export function Dashboard() {
                           <a href={`/address/${tx.from}`} className="text-primary/70 hover:text-primary hover:underline">
                             {truncateAddress(tx.from)}
                           </a>
-                        ) : "—"}
+                        ) : "\u2014"}
                       </td>
                       <td className="px-6 py-3 font-mono text-muted text-xs">
                         {tx.to ? (
                           <a href={`/address/${tx.to}`} className="text-primary/70 hover:text-primary hover:underline">
                             {truncateAddress(tx.to)}
                           </a>
-                        ) : "—"}
+                        ) : "\u2014"}
                       </td>
                       <td className="px-6 py-3 text-muted text-xs">
                         {tx.amount ? (
-                          <span className="text-green-400">{formatCLW(tx.amount)} CLW</span>
-                        ) : (
-                          tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleTimeString() : "—"
-                        )}
+                          <span className="text-green-400">{formatCLAW(tx.amount)} CLAW</span>
+                        ) : "\u2014"}
+                      </td>
+                      <td className="px-6 py-3 text-muted text-xs">
+                        {tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleTimeString() : "\u2014"}
                       </td>
                     </tr>
                 ));

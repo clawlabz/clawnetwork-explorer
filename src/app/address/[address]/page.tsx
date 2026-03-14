@@ -1,27 +1,26 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getBalance, getNonce, getAgent, getReputation, getTransactionsByAddress, formatCLW, truncateAddress, toHexAddress } from "@/lib/rpc";
+import { getBalance, getNonce, getAgent, getReputation, getTransactionsByAddress, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES } from "@/lib/rpc";
 import { ArrowLeft, User, Coins, Shield, ArrowRightLeft } from "lucide-react";
 
-const TX_TYPE_NAMES: Record<number, string> = {
-  0: "AgentRegister",
-  1: "TokenTransfer",
-  2: "TokenCreate",
-  3: "TokenMintTransfer",
-  4: "ReputationAttest",
-  5: "ServiceRegister",
-};
+const PAGE_SIZE = 20;
 
-type Props = { params: Promise<{ address: string }> };
+type Props = {
+  params: Promise<{ address: string }>;
+  searchParams: Promise<{ page?: string }>;
+};
 
 export async function generateMetadata({ params }: Props) {
   const { address } = await params;
   return { title: `Address ${address.slice(0, 8)}...` };
 }
 
-export default async function AddressPage({ params }: Props) {
+export default async function AddressPage({ params, searchParams }: Props) {
   const { address } = await params;
+  const { page: pageParam } = await searchParams;
+  const currentPage = Math.max(1, parseInt(pageParam || "1", 10) || 1);
+  const offset = (currentPage - 1) * PAGE_SIZE;
 
   let balance = "0";
   let nonce = 0;
@@ -35,11 +34,15 @@ export default async function AddressPage({ params }: Props) {
       getNonce(address),
       getAgent(address),
       getReputation(address),
-      getTransactionsByAddress(address) as Promise<Record<string, unknown>[]>,
+      getTransactionsByAddress(address, PAGE_SIZE + 1, offset) as Promise<Record<string, unknown>[]>,
     ]);
   } catch (e) {
     console.error("Failed to fetch address data:", e);
   }
+
+  const hasNextPage = transactions.length > PAGE_SIZE;
+  const displayTransactions = hasNextPage ? transactions.slice(0, PAGE_SIZE) : transactions;
+  const hasPrevPage = currentPage > 1;
 
   return (
     <>
@@ -69,8 +72,8 @@ export default async function AddressPage({ params }: Props) {
               <Coins className="h-4 w-4 text-primary" />
               <span className="text-xs text-muted uppercase tracking-wider">Balance</span>
             </div>
-            <span className="text-2xl font-bold text-primary">{formatCLW(balance)}</span>
-            <span className="text-sm text-muted ml-1">CLW</span>
+            <span className="text-2xl font-bold text-primary">{formatCLAW(balance)}</span>
+            <span className="text-sm text-muted ml-1">CLAW</span>
           </div>
 
           <div className="rounded-xl border border-border bg-surface/50 p-5">
@@ -136,10 +139,10 @@ export default async function AddressPage({ params }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {transactions.length === 0 ? (
+                {displayTransactions.length === 0 ? (
                   <tr><td colSpan={6} className="px-6 py-8 text-center text-muted">No transactions yet</td></tr>
                 ) : (
-                  transactions.map((tx, i) => {
+                  displayTransactions.map((tx, i) => {
                     const txHash = toHexAddress(tx.hash);
                     const fromAddr = toHexAddress(tx.from);
                     const toAddr = toHexAddress(tx.to);
@@ -177,7 +180,7 @@ export default async function AddressPage({ params }: Props) {
                         </td>
                         <td className="px-6 py-3 font-mono text-xs">
                           {amount ? (
-                            <span className="text-primary">{formatCLW(amount)} CLW</span>
+                            <span className="text-primary">{formatCLAW(amount)} CLAW</span>
                           ) : "—"}
                         </td>
                         <td className="px-6 py-3">
@@ -194,6 +197,39 @@ export default async function AddressPage({ params }: Props) {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {(hasPrevPage || hasNextPage) && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-border">
+              <div className="text-xs text-muted">Page {currentPage}</div>
+              <div className="flex items-center gap-2">
+                {hasPrevPage ? (
+                  <a
+                    href={`/address/${address}${currentPage > 2 ? `?page=${currentPage - 1}` : ""}`}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs text-primary hover:bg-primary/5 transition-colors"
+                  >
+                    Previous
+                  </a>
+                ) : (
+                  <span className="rounded-lg border border-border/50 px-3 py-1.5 text-xs text-muted cursor-not-allowed">
+                    Previous
+                  </span>
+                )}
+                {hasNextPage ? (
+                  <a
+                    href={`/address/${address}?page=${currentPage + 1}`}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs text-primary hover:bg-primary/5 transition-colors"
+                  >
+                    Next
+                  </a>
+                ) : (
+                  <span className="rounded-lg border border-border/50 px-3 py-1.5 text-xs text-muted cursor-not-allowed">
+                    Next
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
       <Footer />

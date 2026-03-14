@@ -1,9 +1,9 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getBlock, truncateAddress, toHexAddress } from "@/lib/rpc";
+import { getBlock, truncateAddress, toHexAddress, parseBlockTransaction, formatCLAW, TX_TYPE_NAMES } from "@/lib/rpc";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Layers } from "lucide-react";
+import { ArrowLeft, Layers, ArrowRightLeft } from "lucide-react";
 
 type Props = { params: Promise<{ height: string }> };
 
@@ -18,18 +18,43 @@ export default async function BlockPage({ params }: Props) {
   if (isNaN(h)) notFound();
 
   let block: Record<string, unknown> | null = null;
+  let fetchError: string | null = null;
   try {
     block = await getBlock(h);
-  } catch { /* ignore */ }
+  } catch (e) {
+    fetchError = e instanceof Error ? e.message : "Failed to connect to node";
+  }
+
+  if (fetchError) {
+    return (
+      <>
+        <Header />
+        <main className="mx-auto max-w-7xl px-4 py-8">
+          <a href="/" className="inline-flex items-center gap-1 text-sm text-muted hover:text-primary mb-6 transition-colors">
+            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+          </a>
+          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-8 text-center">
+            <h2 className="text-lg font-semibold text-red-400 mb-2">Failed to load block #{h}</h2>
+            <p className="text-sm text-muted">{fetchError}</p>
+          </div>
+        </main>
+        <Footer />
+      </>
+    );
+  }
 
   if (!block) notFound();
 
   const hash = toHexAddress(block.hash) || String(block.hash ?? "");
   const validator = toHexAddress(block.validator);
   const timestamp = block.timestamp as number || 0;
-  const txns = (block.transactions as unknown[]) || [];
+  const txns = (block.transactions as Record<string, unknown>[]) || [];
   const stateRoot = toHexAddress(block.state_root) || String(block.state_root ?? "");
   const prevHash = toHexAddress(block.prev_hash) || String(block.prev_hash ?? "");
+
+  const parsedTxns = txns.map((tx, txIdx) =>
+    parseBlockTransaction(tx, timestamp, h, txIdx)
+  );
 
   return (
     <>
@@ -58,7 +83,7 @@ export default async function BlockPage({ params }: Props) {
             { label: "State Root", value: stateRoot },
             { label: "Validator", value: validator, link: `/address/${validator}` },
             { label: "Transactions", value: `${txns.length}` },
-            { label: "Timestamp", value: timestamp ? new Date(timestamp * 1000).toLocaleString() : "—" },
+            { label: "Timestamp", value: timestamp ? new Date(timestamp * 1000).toLocaleString() : "\u2014" },
           ].map((row) => (
             <div key={row.label} className="flex flex-col gap-1 px-6 py-4 md:flex-row md:items-center md:gap-8">
               <span className="w-32 shrink-0 text-xs text-muted uppercase tracking-wider">{row.label}</span>
@@ -74,13 +99,64 @@ export default async function BlockPage({ params }: Props) {
           ))}
         </div>
 
-        {txns.length > 0 && (
+        {parsedTxns.length > 0 && (
           <div className="mt-8 rounded-xl border border-border bg-surface/50 overflow-hidden">
-            <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-semibold">Transactions ({txns.length})</h2>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="font-semibold flex items-center gap-2">
+                <ArrowRightLeft className="h-4 w-4 text-primary" /> Transactions ({parsedTxns.length})
+              </h2>
             </div>
-            <div className="p-6">
-              <pre className="text-xs text-muted overflow-x-auto">{JSON.stringify(txns, null, 2)}</pre>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left">TX Hash</th>
+                    <th className="px-6 py-3 text-left">Type</th>
+                    <th className="px-6 py-3 text-left">From</th>
+                    <th className="px-6 py-3 text-left">To</th>
+                    <th className="px-6 py-3 text-left">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parsedTxns.map((tx, i) => (
+                    <tr key={i} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
+                      <td className="px-6 py-3 font-mono text-xs">
+                        {tx.hash.includes(":") ? (
+                          <span className="text-muted">#{i}</span>
+                        ) : (
+                          <a href={`/tx/${tx.hash}`} className="text-primary hover:underline">
+                            {truncateAddress(tx.hash)}
+                          </a>
+                        )}
+                      </td>
+                      <td className="px-6 py-3">
+                        <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                          {TX_TYPE_NAMES[tx.txType] ?? `Type ${tx.txType}`}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 font-mono text-muted text-xs">
+                        {tx.from ? (
+                          <a href={`/address/${tx.from}`} className="text-primary/70 hover:text-primary hover:underline">
+                            {truncateAddress(tx.from)}
+                          </a>
+                        ) : "\u2014"}
+                      </td>
+                      <td className="px-6 py-3 font-mono text-muted text-xs">
+                        {tx.to ? (
+                          <a href={`/address/${tx.to}`} className="text-primary/70 hover:text-primary hover:underline">
+                            {truncateAddress(tx.to)}
+                          </a>
+                        ) : "\u2014"}
+                      </td>
+                      <td className="px-6 py-3 text-muted text-xs">
+                        {tx.amount ? (
+                          <span className="text-green-400">{formatCLAW(tx.amount)} CLAW</span>
+                        ) : "\u2014"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

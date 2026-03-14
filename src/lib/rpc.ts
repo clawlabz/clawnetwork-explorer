@@ -8,6 +8,7 @@ async function rpc<T>(method: string, params: unknown[] = []): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
     cache: "no-store",
+    signal: AbortSignal.timeout(5000),
   });
   const json = await res.json();
   if (json.error) throw new Error(json.error.message);
@@ -52,18 +53,25 @@ export async function getTransactionsByAddress(address: string, limit = 50, offs
 
 export async function getHealth(): Promise<Record<string, unknown>> {
   const url = isServer ? `${DIRECT_RPC_URL}/health` : "/api/health";
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(5000) });
   return res.json();
 }
 
-export function formatCLW(baseUnits: string): string {
-  const n = BigInt(baseUnits);
-  const whole = n / BigInt(1e9);
-  const frac = n % BigInt(1e9);
-  if (frac === BigInt(0)) return `${whole}`;
-  const fracStr = frac.toString().padStart(9, "0").replace(/0+$/, "");
-  return `${whole}.${fracStr}`;
+export function formatCLAW(baseUnits: string): string {
+  try {
+    const n = BigInt(baseUnits);
+    const whole = n / BigInt(1e9);
+    const frac = n % BigInt(1e9);
+    if (frac === BigInt(0)) return whole.toString();
+    const fracStr = frac.toString().padStart(9, "0").replace(/0+$/, "");
+    return `${whole}.${fracStr}`;
+  } catch {
+    return "0";
+  }
 }
+
+/** @deprecated Use formatCLAW instead */
+export const formatCLW = formatCLAW;
 
 export function truncateAddress(addr: string, chars = 6): string {
   if (addr.length <= chars * 2 + 2) return addr;
@@ -91,6 +99,15 @@ export interface ParsedTx {
   timestamp: number;
   blockHeight: number;
 }
+
+export const TX_TYPE_NAMES: Record<number, string> = {
+  0: "AgentRegister",
+  1: "TokenTransfer",
+  2: "TokenCreate",
+  3: "TokenMintTransfer",
+  4: "ReputationAttest",
+  5: "ServiceRegister",
+};
 
 const TX_TYPE_STRING_TO_NUM: Record<string, number> = {
   AgentRegister: 0,
@@ -140,8 +157,8 @@ export function parseBlockTransaction(
 
 function readU128LE(bytes: number[], offset: number): string {
   let value = BigInt(0);
-  for (let i = 15; i >= 0; i--) {
-    value = (value << BigInt(8)) | BigInt(bytes[offset + i] ?? 0);
+  for (let i = 0; i < 16; i++) {
+    value |= BigInt(bytes[offset + i] ?? 0) << BigInt(i * 8);
   }
   return value.toString();
 }

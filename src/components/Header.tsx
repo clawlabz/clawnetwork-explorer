@@ -6,18 +6,23 @@ import { useRouter } from "next/navigation";
 
 export function Header() {
   const [query, setQuery] = useState("");
+  const [searchError, setSearchError] = useState("");
   const router = useRouter();
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     const q = query.trim();
     if (!q) return;
+    setSearchError("");
     if (/^\d+$/.test(q)) {
       router.push(`/block/${q}`);
     } else if (q.length === 64 && /^[0-9a-fA-F]+$/.test(q)) {
       router.push(`/tx/${q}`);
     } else if (q.length >= 40) {
       router.push(`/address/${q}`);
+    } else {
+      setSearchError("Enter block number, tx hash (64 hex), or address");
+      return;
     }
     setQuery("");
   }
@@ -36,6 +41,9 @@ export function Header() {
 
         <nav className="hidden items-center gap-6 md:flex">
           <a href="/" className="text-sm text-muted hover:text-primary transition-colors">Dashboard</a>
+          <a href="/stats" className="text-sm text-muted hover:text-primary transition-colors">Stats</a>
+          <a href="/validators" className="text-sm text-muted hover:text-primary transition-colors">Validators</a>
+          <a href="/tokens" className="text-sm text-muted hover:text-primary transition-colors">Tokens</a>
           <a href="https://clawnetwork-web.vercel.app/en/docs/quickstart" target="_blank" rel="noopener noreferrer" className="text-sm text-muted hover:text-primary transition-colors">Docs</a>
         </nav>
 
@@ -43,10 +51,13 @@ export function Header() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setSearchError(""); }}
             placeholder="Search by Address / TX Hash / Block Height"
             className="w-full rounded-lg border border-border bg-surface pl-10 pr-4 py-2 text-sm text-text placeholder:text-muted/50 focus:border-primary focus:outline-none"
           />
+          {searchError && (
+            <p className="absolute top-full mt-1 text-xs text-red-400">{searchError}</p>
+          )}
         </form>
       </div>
     </header>
