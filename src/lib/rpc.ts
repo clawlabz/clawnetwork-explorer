@@ -80,3 +80,63 @@ export function toHexAddress(value: unknown): string {
   }
   return "";
 }
+
+/** Parse raw transaction from block to extract to, amount, and compute a display hash */
+export interface ParsedTx {
+  hash: string;
+  txType: number;
+  from: string;
+  to: string;
+  amount: string;
+  timestamp: number;
+  blockHeight: number;
+}
+
+export function parseBlockTransaction(
+  tx: Record<string, unknown>,
+  blockTimestamp: number,
+  blockHeight: number,
+  txIndex: number,
+): ParsedTx {
+  const txType = tx.tx_type as number;
+  const from = toHexAddress(tx.from);
+  const payload = tx.payload as number[] | undefined;
+
+  let to = "";
+  let amount = "";
+
+  if (payload && payload.length > 0) {
+    switch (txType) {
+      case 1: // TokenTransfer: [to:32][amount:16 u128 LE]
+        if (payload.length >= 48) {
+          to = toHexAddress(payload.slice(0, 32));
+          amount = readU128LE(payload, 32);
+        }
+        break;
+      case 3: // TokenMintTransfer: [tokenId:32][to:32][amount:16 u128 LE]
+        if (payload.length >= 80) {
+          to = toHexAddress(payload.slice(32, 64));
+          amount = readU128LE(payload, 64);
+        }
+        break;
+      case 4: // ReputationAttest: [to:32]...
+        if (payload.length >= 32) {
+          to = toHexAddress(payload.slice(0, 32));
+        }
+        break;
+    }
+  }
+
+  // Use blockHeight+txIndex as a pseudo-hash for linking (until RPC returns real hash)
+  const hash = `${blockHeight}:${txIndex}`;
+
+  return { hash, txType, from, to, amount, timestamp: blockTimestamp, blockHeight };
+}
+
+function readU128LE(bytes: number[], offset: number): string {
+  let value = BigInt(0);
+  for (let i = 15; i >= 0; i--) {
+    value = (value << BigInt(8)) | BigInt(bytes[offset + i] ?? 0);
+  }
+  return value.toString();
+}
