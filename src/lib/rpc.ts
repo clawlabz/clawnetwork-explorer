@@ -92,13 +92,25 @@ export interface ParsedTx {
   blockHeight: number;
 }
 
+const TX_TYPE_STRING_TO_NUM: Record<string, number> = {
+  AgentRegister: 0,
+  TokenTransfer: 1,
+  TokenCreate: 2,
+  TokenMintTransfer: 3,
+  ReputationAttest: 4,
+  ServiceRegister: 5,
+};
+
 export function parseBlockTransaction(
   tx: Record<string, unknown>,
   blockTimestamp: number,
   blockHeight: number,
   txIndex: number,
 ): ParsedTx {
-  const txType = tx.tx_type as number;
+  // tx_type can be a string ("TokenTransfer") or number (1)
+  const rawType = tx.tx_type;
+  const txType = typeof rawType === "string" ? (TX_TYPE_STRING_TO_NUM[rawType] ?? -1) : (rawType as number);
+  const typeName = typeof rawType === "string" ? rawType : "";
   const from = toHexAddress(tx.from);
   const payload = tx.payload as number[] | undefined;
 
@@ -106,28 +118,21 @@ export function parseBlockTransaction(
   let amount = "";
 
   if (payload && payload.length > 0) {
-    switch (txType) {
-      case 1: // TokenTransfer: [to:32][amount:16 u128 LE]
-        if (payload.length >= 48) {
-          to = toHexAddress(payload.slice(0, 32));
-          amount = readU128LE(payload, 32);
-        }
-        break;
-      case 3: // TokenMintTransfer: [tokenId:32][to:32][amount:16 u128 LE]
-        if (payload.length >= 80) {
-          to = toHexAddress(payload.slice(32, 64));
-          amount = readU128LE(payload, 64);
-        }
-        break;
-      case 4: // ReputationAttest: [to:32]...
-        if (payload.length >= 32) {
-          to = toHexAddress(payload.slice(0, 32));
-        }
-        break;
+    if (txType === 1 && payload.length >= 48) {
+      // TokenTransfer: [to:32][amount:16 u128 LE]
+      to = toHexAddress(payload.slice(0, 32));
+      amount = readU128LE(payload, 32);
+    } else if (txType === 3 && payload.length >= 80) {
+      // TokenMintTransfer: [tokenId:32][to:32][amount:16 u128 LE]
+      to = toHexAddress(payload.slice(32, 64));
+      amount = readU128LE(payload, 64);
+    } else if (txType === 4 && payload.length >= 32) {
+      // ReputationAttest: [to:32]...
+      to = toHexAddress(payload.slice(0, 32));
     }
   }
 
-  // Use blockHeight+txIndex as a pseudo-hash for linking (until RPC returns real hash)
+  // Use blockHeight:txIndex as identifier (block RPC doesn't return tx hash)
   const hash = `${blockHeight}:${txIndex}`;
 
   return { hash, txType, from, to, amount, timestamp: blockTimestamp, blockHeight };
