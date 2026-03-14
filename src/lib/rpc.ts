@@ -132,8 +132,8 @@ export function parseBlockTransaction(
     }
   }
 
-  // Use blockHeight:txIndex as identifier (block RPC doesn't return tx hash)
-  const hash = `${blockHeight}:${txIndex}`;
+  // Use tx hash from RPC if available, otherwise fall back to block:index
+  const hash = toHexAddress(tx.hash) || `${blockHeight}:${txIndex}`;
 
   return { hash, txType, from, to, amount, timestamp: blockTimestamp, blockHeight };
 }

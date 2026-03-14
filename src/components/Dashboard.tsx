@@ -149,7 +149,7 @@ export function Dashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
-                <th className="px-6 py-3 text-left">Block</th>
+                <th className="px-6 py-3 text-left">TX Hash</th>
                 <th className="px-6 py-3 text-left">Type</th>
                 <th className="px-6 py-3 text-left">From</th>
                 <th className="px-6 py-3 text-left">To</th>
@@ -171,9 +171,15 @@ export function Dashboard() {
                 return allTxs.slice(0, 20).map((tx, i) => (
                     <tr key={i} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
                       <td className="px-6 py-3 font-mono text-xs">
-                        <a href={`/block/${tx.blockHeight}`} className="text-primary hover:underline">
-                          Block #{tx.blockHeight}:{tx.hash.split(":")[1]}
-                        </a>
+                        {tx.hash.includes(":") ? (
+                          <a href={`/block/${tx.blockHeight}`} className="text-primary hover:underline">
+                            Block #{tx.blockHeight}
+                          </a>
+                        ) : (
+                          <a href={`/tx/${tx.hash}`} className="text-primary hover:underline">
+                            {truncateAddress(tx.hash)}
+                          </a>
+                        )}
                       </td>
                       <td className="px-6 py-3">
                         <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
