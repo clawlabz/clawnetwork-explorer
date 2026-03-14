@@ -1,7 +1,9 @@
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || "http://39.102.144.231:9710";
+const DIRECT_RPC_URL = process.env.RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || "http://39.102.144.231:9710";
+const isServer = typeof window === "undefined";
 
 async function rpc<T>(method: string, params: unknown[] = []): Promise<T> {
-  const res = await fetch(RPC_URL, {
+  const url = isServer ? DIRECT_RPC_URL : "/api/rpc";
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
@@ -41,7 +43,8 @@ export async function getServices(type?: string): Promise<unknown[]> {
 }
 
 export async function getHealth(): Promise<Record<string, unknown>> {
-  const res = await fetch(`${RPC_URL}/health`, { cache: "no-store" });
+  const url = isServer ? `${DIRECT_RPC_URL}/health` : "/api/health";
+  const res = await fetch(url, { cache: "no-store" });
   return res.json();
 }
 
