@@ -162,3 +162,54 @@ function readU128LE(bytes: number[], offset: number): string {
   }
   return value.toString();
 }
+
+// --- Borsh decoding helpers ---
+
+interface BorshReader {
+  readonly data: number[];
+  offset: number;
+}
+
+function borshReadU8(r: BorshReader): number {
+  const val = r.data[r.offset] ?? 0;
+  r.offset += 1;
+  return val;
+}
+
+function borshReadU32LE(r: BorshReader): number {
+  const b = r.data;
+  const o = r.offset;
+  const val = ((b[o] ?? 0) | ((b[o + 1] ?? 0) << 8) | ((b[o + 2] ?? 0) << 16) | ((b[o + 3] ?? 0) << 24)) >>> 0;
+  r.offset += 4;
+  return val;
+}
+
+function borshReadU128LE(r: BorshReader): string {
+  const val = readU128LE(r.data, r.offset);
+  r.offset += 16;
+  return val;
+}
+
+function borshReadString(r: BorshReader): string {
+  const len = borshReadU32LE(r);
+  const bytes = r.data.slice(r.offset, r.offset + len);
+  r.offset += len;
+  return new TextDecoder().decode(new Uint8Array(bytes));
+}
+
+/** Borsh field order: name (String), symbol (String), decimals (u8), total_supply (u128) */
+export interface TokenCreatePayload {
+  name: string;
+  symbol: string;
+  decimals: number;
+  initialSupply: string;
+}
+
+export function parseTokenCreatePayload(payloadBytes: number[]): TokenCreatePayload {
+  const r: BorshReader = { data: payloadBytes, offset: 0 };
+  const name = borshReadString(r);
+  const symbol = borshReadString(r);
+  const decimals = borshReadU8(r);
+  const initialSupply = borshReadU128LE(r);
+  return { name, symbol, decimals, initialSupply };
+}

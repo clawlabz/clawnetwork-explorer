@@ -1,6 +1,6 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { getBlockNumber, getBlock, toHexAddress, truncateAddress, formatCLAW } from "@/lib/rpc";
+import { getBlockNumber, getBlock, toHexAddress, truncateAddress, formatCLAW, parseTokenCreatePayload } from "@/lib/rpc";
 import { Coins, ArrowLeft } from "lucide-react";
 
 export const metadata = { title: "Tokens" };
@@ -13,6 +13,21 @@ interface TokenInfo {
   totalSupply: string;
   creator: string;
   blockHeight: number;
+}
+
+function formatTokenSupply(baseUnits: string, decimals: number): string {
+  try {
+    const n = BigInt(baseUnits);
+    if (decimals === 0) return n.toLocaleString();
+    const divisor = BigInt(10) ** BigInt(decimals);
+    const whole = n / divisor;
+    const frac = n % divisor;
+    if (frac === BigInt(0)) return whole.toLocaleString();
+    const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
+    return `${whole.toLocaleString()}.${fracStr}`;
+  } catch {
+    return "0";
+  }
 }
 
 async function fetchInBatches<T>(fns: (() => Promise<T>)[], batchSize = 20): Promise<T[]> {
@@ -54,21 +69,19 @@ async function getTokensFromBlocks(): Promise<TokenInfo[]> {
         const from = toHexAddress(tx.from);
         if (payload && payload.length > 0) {
           try {
-            // Try to extract token info from payload
-            // TokenCreate payload: borsh-serialized { name, symbol, decimals, total_supply }
-            // For display, we'll use the tx hash as token ID
+            const decoded = parseTokenCreatePayload(payload);
             const hash = toHexAddress(tx.hash);
             tokens.push({
               tokenId: hash || `${blockHeight}:token`,
-              name: `Token-${hash?.slice(0, 8) || "unknown"}`,
-              symbol: "TKN",
-              decimals: 9,
-              totalSupply: "0",
+              name: decoded.name,
+              symbol: decoded.symbol,
+              decimals: decoded.decimals,
+              totalSupply: decoded.initialSupply,
               creator: from,
               blockHeight,
             });
           } catch {
-            // Skip malformed
+            // Skip malformed payload
           }
         }
       }
@@ -154,6 +167,8 @@ export default async function TokensPage() {
                     <th className="px-6 py-3 text-left">#</th>
                     <th className="px-6 py-3 text-left">Token</th>
                     <th className="px-6 py-3 text-left">Symbol</th>
+                    <th className="px-6 py-3 text-left">Decimals</th>
+                    <th className="px-6 py-3 text-left">Total Supply</th>
                     <th className="px-6 py-3 text-left">Creator</th>
                     <th className="px-6 py-3 text-left">Block</th>
                   </tr>
@@ -166,6 +181,8 @@ export default async function TokensPage() {
                       <td className="px-6 py-3">
                         <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{token.symbol}</span>
                       </td>
+                      <td className="px-6 py-3 text-center">{token.decimals}</td>
+                      <td className="px-6 py-3 font-mono text-xs">{formatTokenSupply(token.totalSupply, token.decimals)}</td>
                       <td className="px-6 py-3 font-mono text-xs">
                         <a href={`/address/${token.creator}`} className="text-primary hover:underline">
                           {truncateAddress(token.creator)}
