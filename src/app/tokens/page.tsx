@@ -177,7 +177,11 @@ export default async function TokensPage() {
                   {tokens.map((token, i) => (
                     <tr key={token.tokenId} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
                       <td className="px-6 py-3 text-muted">{i + 1}</td>
-                      <td className="px-6 py-3 font-semibold">{token.name}</td>
+                      <td className="px-6 py-3 font-semibold">
+                        <a href={`/token/${token.tokenId}`} className="text-primary hover:underline">
+                          {token.name}
+                        </a>
+                      </td>
                       <td className="px-6 py-3">
                         <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{token.symbol}</span>
                       </td>

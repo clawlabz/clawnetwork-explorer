@@ -1,4 +1,6 @@
-const DIRECT_RPC_URL = process.env.RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || "http://39.102.144.231:9710";
+import { RPC_URL } from "./config";
+
+const DIRECT_RPC_URL = RPC_URL;
 const isServer = typeof window === "undefined";
 
 async function rpc<T>(method: string, params: unknown[] = []): Promise<T> {

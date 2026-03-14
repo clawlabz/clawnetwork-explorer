@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const RPC_URL = process.env.RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || "http://39.102.144.231:9710";
+import { RPC_URL } from "@/lib/config";
 
 const ALLOWED_METHODS = new Set([
   "clw_blockNumber", "clw_getBlockByNumber", "clw_getBalance",

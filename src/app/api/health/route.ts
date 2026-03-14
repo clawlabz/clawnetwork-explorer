@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-
-const RPC_URL = process.env.RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || "http://39.102.144.231:9710";
+import { RPC_URL } from "@/lib/config";
 
 export async function GET() {
   try {
