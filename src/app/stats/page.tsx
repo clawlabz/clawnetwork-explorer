@@ -188,7 +188,7 @@ export default function StatsPage() {
                   fontSize: 12,
                 }}
                 labelFormatter={(v) => `Block #${v}`}
-                formatter={(value: number) => [`${value}s`, "Block Time"]}
+                formatter={(value) => [`${value}s`, "Block Time"]}
               />
               <Area
                 type="monotone"
@@ -236,7 +236,7 @@ export default function StatsPage() {
                   fontSize: 12,
                 }}
                 labelFormatter={(v) => `Block #${v}`}
-                formatter={(value: number) => [value, "Transactions"]}
+                formatter={(value) => [value, "Transactions"]}
               />
               <Bar
                 dataKey="txCount"
