@@ -61,3 +61,14 @@ export function truncateAddress(addr: string, chars = 6): string {
   if (addr.length <= chars * 2 + 2) return addr;
   return `${addr.slice(0, chars)}...${addr.slice(-chars)}`;
 }
+
+/** Convert a value that may be a byte array (number[]) to hex string */
+export function toHexAddress(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    const hex = value.map((b: number) => b.toString(16).padStart(2, "0")).join("");
+    if (hex === "0".repeat(hex.length)) return "";
+    return hex;
+  }
+  return "";
+}

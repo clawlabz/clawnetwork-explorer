@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getBlock, truncateAddress } from "@/lib/rpc";
+import { getBlock, truncateAddress, toHexAddress } from "@/lib/rpc";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Layers } from "lucide-react";
 
@@ -24,12 +24,12 @@ export default async function BlockPage({ params }: Props) {
 
   if (!block) notFound();
 
-  const hash = block.hash as string || "";
-  const validator = block.validator as string || "";
+  const hash = toHexAddress(block.hash) || String(block.hash ?? "");
+  const validator = toHexAddress(block.validator);
   const timestamp = block.timestamp as number || 0;
   const txns = (block.transactions as unknown[]) || [];
-  const stateRoot = block.state_root as string || "";
-  const prevHash = block.prev_hash as string || "";
+  const stateRoot = toHexAddress(block.state_root) || String(block.state_root ?? "");
+  const prevHash = toHexAddress(block.prev_hash) || String(block.prev_hash ?? "");
 
   return (
     <>

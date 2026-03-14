@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getHealth, getBlockNumber, getBlock, truncateAddress } from "@/lib/rpc";
+import { getHealth, getBlockNumber, getBlock, truncateAddress, toHexAddress } from "@/lib/rpc";
 import { Layers, Clock, Users, Activity } from "lucide-react";
 
 interface BlockInfo {
@@ -106,7 +106,14 @@ export function Dashboard() {
                     </a>
                   </td>
                   <td className="px-6 py-3 font-mono text-muted text-xs">
-                    {block.validator ? truncateAddress(block.validator) : "—"}
+                    {(() => {
+                      const addr = toHexAddress(block.validator);
+                      return addr ? (
+                        <a href={`/address/${addr}`} className="text-primary/70 hover:text-primary hover:underline">
+                          {truncateAddress(addr)}
+                        </a>
+                      ) : "—";
+                    })()}
                   </td>
                   <td className="px-6 py-3">{block.transactions?.length || 0}</td>
                   <td className="px-6 py-3 text-muted text-xs">
