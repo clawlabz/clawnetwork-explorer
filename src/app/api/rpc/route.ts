@@ -18,10 +18,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Method not allowed" }, { status: 403 });
     }
 
-    const res = await fetch(RPC_URL, {
+    const rpcBody = { jsonrpc: "2.0", id: body.id ?? 1, ...body };
+    const res = await fetch(RPC_URL.trim(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(rpcBody),
     });
     const data = await res.json();
     return NextResponse.json(data);
