@@ -1,10 +1,27 @@
-import { RPC_URL } from "./config";
+import { getRpcUrl, DEFAULT_NETWORK, type NetworkId } from "./config";
 
-const DIRECT_RPC_URL = RPC_URL;
 const isServer = typeof window === "undefined";
 
+/** Read network from localStorage (client-side only) */
+function getClientNetwork(): NetworkId {
+  if (isServer) return DEFAULT_NETWORK;
+  try {
+    const stored = localStorage.getItem("claw-explorer-network");
+    if (stored === "mainnet" || stored === "testnet") return stored;
+  } catch { /* ignore */ }
+  return DEFAULT_NETWORK;
+}
+
 async function rpc<T>(method: string, params: unknown[] = []): Promise<T> {
-  const url = isServer ? DIRECT_RPC_URL : "/api/rpc";
+  const network = getClientNetwork();
+  let url: string;
+
+  if (isServer) {
+    url = getRpcUrl(network);
+  } else {
+    url = `/api/rpc?network=${network}`;
+  }
+
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -70,8 +87,15 @@ export async function callContractView(address: string, method: string, args: st
 }
 
 export async function getHealth(): Promise<Record<string, unknown>> {
-  const url = isServer ? `${DIRECT_RPC_URL}/health` : "/api/health";
-  const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+  const network = getClientNetwork();
+
+  if (isServer) {
+    const rpcUrl = getRpcUrl(network);
+    const res = await fetch(`${rpcUrl}/health`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+    return res.json();
+  }
+
+  const res = await fetch(`/api/health?network=${network}`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
   return res.json();
 }
 
@@ -142,10 +166,8 @@ export function parseBlockTransaction(
   blockHeight: number,
   txIndex: number,
 ): ParsedTx {
-  // tx_type can be a string ("TokenTransfer") or number (1)
   const rawType = tx.tx_type;
   const txType = typeof rawType === "string" ? (TX_TYPE_STRING_TO_NUM[rawType] ?? -1) : (rawType as number);
-  const typeName = typeof rawType === "string" ? rawType : "";
   const from = toHexAddress(tx.from);
   const payload = tx.payload as number[] | undefined;
 
@@ -154,20 +176,16 @@ export function parseBlockTransaction(
 
   if (payload && payload.length > 0) {
     if (txType === 1 && payload.length >= 48) {
-      // TokenTransfer: [to:32][amount:16 u128 LE]
       to = toHexAddress(payload.slice(0, 32));
       amount = readU128LE(payload, 32);
     } else if (txType === 3 && payload.length >= 80) {
-      // TokenMintTransfer: [tokenId:32][to:32][amount:16 u128 LE]
       to = toHexAddress(payload.slice(32, 64));
       amount = readU128LE(payload, 64);
     } else if (txType === 4 && payload.length >= 32) {
-      // ReputationAttest: [to:32]...
       to = toHexAddress(payload.slice(0, 32));
     }
   }
 
-  // Use tx hash from RPC if available, otherwise fall back to block:index
   const hash = toHexAddress(tx.hash) || `${blockHeight}:${txIndex}`;
 
   return { hash, txType, from, to, amount, timestamp: blockTimestamp, blockHeight };

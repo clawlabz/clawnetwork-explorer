@@ -27,6 +27,7 @@ import {
   Box,
   ArrowUpRight,
 } from "lucide-react";
+import { useNetwork } from "./NetworkContext";
 import {
   AreaChart,
   Area,
@@ -53,6 +54,7 @@ interface ChartPoint {
 }
 
 export function Dashboard() {
+  const { config: networkConfig } = useNetwork();
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [latestBlocks, setLatestBlocks] = useState<BlockInfo[]>([]);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
@@ -192,7 +194,7 @@ export function Dashboard() {
         <div className="h-4 w-px bg-border" />
         <div className="flex items-center gap-1.5">
           <TrendingUp className="h-3 w-3 text-primary/50" />
-          <span className="text-xs text-muted">Devnet</span>
+          <span className="text-xs text-muted">{networkConfig.name}</span>
         </div>
       </div>
 

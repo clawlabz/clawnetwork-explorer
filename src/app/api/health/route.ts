@@ -1,9 +1,17 @@
-import { NextResponse } from "next/server";
-import { RPC_URL } from "@/lib/config";
+import { NextRequest, NextResponse } from "next/server";
+import { getRpcUrl, type NetworkId } from "@/lib/config";
 
-export async function GET() {
+function parseNetwork(req: NextRequest): NetworkId {
+  const param = req.nextUrl.searchParams.get("network");
+  if (param === "mainnet" || param === "testnet") return param;
+  return "testnet";
+}
+
+export async function GET(req: NextRequest) {
   try {
-    const res = await fetch(`${RPC_URL}/health`, { cache: "no-store" });
+    const network = parseNetwork(req);
+    const rpcUrl = getRpcUrl(network);
+    const res = await fetch(`${rpcUrl}/health`, { cache: "no-store" });
     const data = await res.json();
     return NextResponse.json(data);
   } catch {

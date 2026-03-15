@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { RPC_URL } from "@/lib/config";
+import { getRpcUrl, type NetworkId } from "@/lib/config";
 
 const ALLOWED_METHODS = new Set([
   "clw_blockNumber", "clw_getBlockByNumber", "clw_getBalance",
@@ -10,6 +10,12 @@ const ALLOWED_METHODS = new Set([
   "clw_getContractStorage", "clw_callContractView",
 ]);
 
+function parseNetwork(req: NextRequest): NetworkId {
+  const param = req.nextUrl.searchParams.get("network");
+  if (param === "mainnet" || param === "testnet") return param;
+  return "testnet";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -18,8 +24,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Method not allowed" }, { status: 403 });
     }
 
+    const network = parseNetwork(req);
+    const rpcUrl = getRpcUrl(network);
+
     const rpcBody = { jsonrpc: "2.0", id: body.id ?? 1, ...body };
-    const res = await fetch(RPC_URL.trim(), {
+    const res = await fetch(rpcUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(rpcBody),
