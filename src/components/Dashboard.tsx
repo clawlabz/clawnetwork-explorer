@@ -1,8 +1,42 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { getHealth, getBlockNumber, getBlock, truncateAddress, toHexAddress, parseBlockTransaction, formatCLAW, TX_TYPE_NAMES, type ParsedTx } from "@/lib/rpc";
-import { Layers, Clock, Users, Activity, ArrowRightLeft } from "lucide-react";
+import {
+  getHealth,
+  getBlockNumber,
+  getBlock,
+  truncateAddress,
+  toHexAddress,
+  parseBlockTransaction,
+  formatCLAW,
+  TX_TYPE_NAMES,
+  type ParsedTx,
+} from "@/lib/rpc";
+import {
+  Layers,
+  Clock,
+  Users,
+  Activity,
+  ArrowRightLeft,
+  Cpu,
+  Zap,
+  Globe,
+  Timer,
+  Blocks,
+  TrendingUp,
+  Box,
+  ArrowUpRight,
+} from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+} from "recharts";
 
 interface BlockInfo {
   height: number;
@@ -12,9 +46,20 @@ interface BlockInfo {
   hash: string;
 }
 
+interface ChartPoint {
+  block: number;
+  blockTime: number;
+  txCount: number;
+}
+
 export function Dashboard() {
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [latestBlocks, setLatestBlocks] = useState<BlockInfo[]>([]);
+  const [chartData, setChartData] = useState<ChartPoint[]>([]);
+  const [totalTxns, setTotalTxns] = useState(0);
+  const [tps, setTps] = useState(0);
+  const [avgBlockTime, setAvgBlockTime] = useState(0);
+  const [validatorCount, setValidatorCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,17 +70,51 @@ export function Dashboard() {
       const [h, height] = await Promise.all([getHealth(), getBlockNumber()]);
       setHealth(h);
 
+      // Fetch last 30 blocks for charts + tables
+      const count = Math.min(30, height + 1);
+      const start = Math.max(0, height - count + 1);
       const blockPromises: Promise<Record<string, unknown> | null>[] = [];
-      const start = Math.max(0, height - 9);
       for (let i = height; i >= start; i--) {
         blockPromises.push(getBlock(i));
       }
-      const blocks = (await Promise.all(blockPromises)).filter(Boolean) as unknown as BlockInfo[];
-      setLatestBlocks(blocks);
+      const rawBlocks = (await Promise.all(blockPromises)).filter(Boolean) as unknown as BlockInfo[];
+      setLatestBlocks(rawBlocks);
+
+      // Build chart data from sorted blocks
+      const sorted = [...rawBlocks].sort((a, b) => a.height - b.height);
+      const points: ChartPoint[] = [];
+      for (let i = 1; i < sorted.length; i++) {
+        const timeDiff = sorted[i].timestamp - sorted[i - 1].timestamp;
+        points.push({
+          block: sorted[i].height,
+          blockTime: Math.max(0, timeDiff),
+          txCount: sorted[i].transactions?.length || 0,
+        });
+      }
+      setChartData(points);
+
+      // Stats
+      const totalTx = sorted.reduce((sum, b) => sum + (b.transactions?.length || 0), 0);
+      setTotalTxns(totalTx);
+
+      if (sorted.length >= 2) {
+        const timeSpan = sorted[sorted.length - 1].timestamp - sorted[0].timestamp;
+        setAvgBlockTime(Math.round((timeSpan / (sorted.length - 1)) * 100) / 100);
+      }
+
+      const recent = sorted.slice(-10);
+      if (recent.length >= 2) {
+        const recentTxns = recent.reduce((sum, b) => sum + (b.transactions?.length || 0), 0);
+        const recentTimeSpan = recent[recent.length - 1].timestamp - recent[0].timestamp;
+        setTps(recentTimeSpan > 0 ? Math.round((recentTxns / recentTimeSpan) * 100) / 100 : 0);
+      }
+
+      const validators = new Set(sorted.map((b) => toHexAddress(b.validator)).filter(Boolean));
+      setValidatorCount(validators.size);
+
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to fetch data");
-      console.error("Failed to fetch data:", e instanceof Error ? e.message : e);
     } finally {
       setLoading(false);
     }
@@ -56,169 +135,302 @@ export function Dashboard() {
     );
   }
 
-  const height = health?.height as number || 0;
-  const peerCount = health?.peer_count as number || 0;
-  const uptime = health?.uptime_secs as number || 0;
-  const version = health?.version as string || "unknown";
+  const height = (health?.height as number) || 0;
+  const peerCount = (health?.peer_count as number) || 0;
+  const uptime = (health?.uptime_secs as number) || 0;
+  const version = (health?.version as string) || "unknown";
+  const epoch = (health?.epoch as number) || 0;
+  const mempoolSize = (health?.mempool_size as number) || 0;
+  const status = (health?.status as string) || "unknown";
 
-  const stats = [
-    { icon: Layers, label: "Block Height", value: height.toLocaleString(), color: "text-primary" },
-    { icon: Clock, label: "Block Time", value: "3s", color: "text-primary" },
-    { icon: Users, label: "Active Peers", value: peerCount.toString(), color: "text-primary" },
-    { icon: Activity, label: "Version", value: `v${version}`, color: "text-primary" },
-  ];
+  const formatUptime = (secs: number) => {
+    if (secs < 60) return `${secs}s`;
+    if (secs < 3600) return `${Math.floor(secs / 60)}m`;
+    if (secs < 86400) return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
+    return `${Math.floor(secs / 86400)}d ${Math.floor((secs % 86400) / 3600)}h`;
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-400 mb-6">
+        <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-400">
           Failed to connect to node: {error}
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <div key={i} className="rounded-xl border border-border bg-surface/50 p-5">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-muted uppercase tracking-wider">{stat.label}</span>
-                <Icon className="h-4 w-4 text-primary/60" />
-              </div>
-              <span className={`text-2xl font-bold ${stat.color}`}>{stat.value}</span>
+      {/* Hero Stats - Primary Metrics */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard icon={Layers} label="Block Height" value={height.toLocaleString()} color="text-primary" />
+        <StatCard icon={ArrowRightLeft} label="Transactions" value={totalTxns.toLocaleString()} subtext={`in last ${latestBlocks.length} blocks`} color="text-emerald-400" />
+        <StatCard icon={Zap} label="TPS" value={tps.toString()} subtext="transactions/sec" color="text-yellow-400" />
+        <StatCard icon={Users} label="Validators" value={validatorCount.toString()} subtext="active" color="text-purple-400" />
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        <MiniStat icon={Clock} label="Avg Block Time" value={`${avgBlockTime}s`} />
+        <MiniStat icon={Globe} label="Peers" value={peerCount.toString()} />
+        <MiniStat icon={Blocks} label="Epoch" value={epoch.toString()} />
+        <MiniStat icon={Timer} label="Uptime" value={formatUptime(uptime)} />
+        <MiniStat icon={Cpu} label="Mempool" value={mempoolSize.toString()} />
+      </div>
+
+      {/* Network Status Bar */}
+      <div className="flex items-center gap-4 rounded-xl border border-border bg-surface/30 px-5 py-3">
+        <div className="flex items-center gap-2">
+          <span className={`inline-block h-2.5 w-2.5 rounded-full ${status === "healthy" ? "bg-emerald-400" : status === "degraded" ? "bg-yellow-400" : "bg-red-400"}`} />
+          <span className="text-xs uppercase tracking-wider text-muted">Network</span>
+          <span className={`text-xs font-semibold ${status === "healthy" ? "text-emerald-400" : status === "degraded" ? "text-yellow-400" : "text-red-400"}`}>
+            {status}
+          </span>
+        </div>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-1.5">
+          <Activity className="h-3 w-3 text-primary/50" />
+          <span className="text-xs text-muted">v{version}</span>
+        </div>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-1.5">
+          <TrendingUp className="h-3 w-3 text-primary/50" />
+          <span className="text-xs text-muted">Devnet</span>
+        </div>
+      </div>
+
+      {/* Charts Row */}
+      {chartData.length > 1 && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* Block Time Chart */}
+          <div className="rounded-xl border border-border bg-surface/50 p-5">
+            <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+              <Clock className="h-4 w-4 text-primary" />
+              Block Time
+              <span className="text-xs font-normal text-muted">last {chartData.length} blocks</span>
+            </h3>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="btGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#00eeff" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="#00eeff" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="block" tick={{ fill: "#666", fontSize: 10 }} tickFormatter={(v) => `${v}`} stroke="transparent" />
+                  <YAxis tick={{ fill: "#666", fontSize: 10 }} stroke="transparent" width={30} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#0f2223", border: "1px solid #1d3d3f", borderRadius: "8px", color: "#e8e8e8", fontSize: 12 }}
+                    labelFormatter={(v) => `Block #${v}`}
+                    formatter={(value) => [`${value}s`, "Block Time"]}
+                  />
+                  <Area type="monotone" dataKey="blockTime" stroke="#00eeff" strokeWidth={2} fill="url(#btGrad)" dot={false} activeDot={{ r: 3, fill: "#00eeff" }} />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
-          );
-        })}
-      </div>
+          </div>
 
-      {/* Latest Blocks */}
-      <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="font-semibold flex items-center gap-2">
-            <Layers className="h-4 w-4 text-primary" /> Latest Blocks
-          </h2>
+          {/* Transaction Activity Chart */}
+          <div className="rounded-xl border border-border bg-surface/50 p-5">
+            <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+              <ArrowRightLeft className="h-4 w-4 text-emerald-400" />
+              Transaction Activity
+              <span className="text-xs font-normal text-muted">per block</span>
+            </h3>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <XAxis dataKey="block" tick={{ fill: "#666", fontSize: 10 }} tickFormatter={(v) => `${v}`} stroke="transparent" />
+                  <YAxis tick={{ fill: "#666", fontSize: 10 }} stroke="transparent" width={30} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#0f2223", border: "1px solid #1d3d3f", borderRadius: "8px", color: "#e8e8e8", fontSize: 12 }}
+                    labelFormatter={(v) => `Block #${v}`}
+                    formatter={(value) => [value, "Transactions"]}
+                  />
+                  <Bar dataKey="txCount" fill="#34d399" fillOpacity={0.7} radius={[3, 3, 0, 0]} maxBarSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
-                <th className="px-6 py-3 text-left">Height</th>
-                <th className="px-6 py-3 text-left">Validator</th>
-                <th className="px-6 py-3 text-left">Txns</th>
-                <th className="px-6 py-3 text-left">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {latestBlocks.map((block) => (
-                <tr key={block.height} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
-                  <td className="px-6 py-3">
-                    <a href={`/block/${block.height}`} className="text-primary hover:underline font-mono">
-                      {block.height.toLocaleString()}
-                    </a>
-                  </td>
-                  <td className="px-6 py-3 font-mono text-muted text-xs">
-                    {(() => {
-                      const addr = toHexAddress(block.validator);
-                      return addr ? (
-                        <a href={`/address/${addr}`} className="text-primary/70 hover:text-primary hover:underline">
-                          {truncateAddress(addr)}
+      )}
+
+      {/* Latest Blocks & Transactions - Side by Side on Desktop */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Latest Blocks */}
+        <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <h2 className="text-sm font-semibold flex items-center gap-2">
+              <Box className="h-4 w-4 text-primary" /> Latest Blocks
+            </h2>
+            <a href="/stats" className="flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors">
+              View All <ArrowUpRight className="h-3 w-3" />
+            </a>
+          </div>
+          <div className="divide-y divide-border/50">
+            {latestBlocks.slice(0, 8).map((block) => {
+              const validator = toHexAddress(block.validator);
+              const txCount = block.transactions?.length || 0;
+              const timeAgo = block.timestamp ? formatTimeAgo(block.timestamp) : "—";
+              return (
+                <div key={block.height} className="flex items-center gap-4 px-5 py-3 hover:bg-primary/5 transition-colors">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Layers className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <a href={`/block/${block.height}`} className="text-sm font-semibold text-primary hover:underline font-mono">
+                        #{block.height.toLocaleString()}
+                      </a>
+                      <span className="text-xs text-muted">{timeAgo}</span>
+                    </div>
+                    <div className="text-xs text-muted mt-0.5">
+                      Validator{" "}
+                      {validator ? (
+                        <a href={`/address/${validator}`} className="text-primary/60 hover:text-primary font-mono">
+                          {truncateAddress(validator, 4)}
                         </a>
-                      ) : "\u2014";
-                    })()}
-                  </td>
-                  <td className="px-6 py-3">{block.transactions?.length || 0}</td>
-                  <td className="px-6 py-3 text-muted text-xs">
-                    {block.timestamp ? new Date(block.timestamp * 1000).toLocaleTimeString() : "\u2014"}
-                  </td>
-                </tr>
-              ))}
-              {latestBlocks.length === 0 && (
-                <tr><td colSpan={4} className="px-6 py-8 text-center text-muted">No blocks yet</td></tr>
-              )}
-            </tbody>
-          </table>
+                      ) : "—"}
+                    </div>
+                  </div>
+                  <div className="shrink-0 rounded-md bg-surface px-2 py-1 text-xs text-muted border border-border/50">
+                    {txCount} txn{txCount !== 1 ? "s" : ""}
+                  </div>
+                </div>
+              );
+            })}
+            {latestBlocks.length === 0 && (
+              <div className="px-5 py-8 text-center text-sm text-muted">No blocks yet</div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Latest Transactions */}
-      <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="font-semibold flex items-center gap-2">
-            <ArrowRightLeft className="h-4 w-4 text-primary" /> Latest Transactions
-          </h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
-                <th className="px-6 py-3 text-left">TX Hash</th>
-                <th className="px-6 py-3 text-left">Type</th>
-                <th className="px-6 py-3 text-left">From</th>
-                <th className="px-6 py-3 text-left">To</th>
-                <th className="px-6 py-3 text-left">Amount</th>
-                <th className="px-6 py-3 text-left">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(() => {
-                const allTxs: ParsedTx[] = latestBlocks.flatMap((block) =>
-                  (block.transactions || []).map((tx, txIdx) =>
-                    parseBlockTransaction(tx as unknown as Record<string, unknown>, block.timestamp, block.height, txIdx)
-                  )
-                );
-                if (allTxs.length === 0) {
-                  return (
-                    <tr><td colSpan={6} className="px-6 py-8 text-center text-muted">No transactions yet</td></tr>
-                  );
-                }
-                return allTxs.slice(0, 20).map((tx, i) => (
-                    <tr key={i} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
-                      <td className="px-6 py-3 font-mono text-xs">
-                        {tx.hash.includes(":") ? (
-                          <a href={`/block/${tx.blockHeight}`} className="text-primary hover:underline">
-                            Block #{tx.blockHeight}
+        {/* Latest Transactions */}
+        <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <h2 className="text-sm font-semibold flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-emerald-400" /> Latest Transactions
+            </h2>
+          </div>
+          <div className="divide-y divide-border/50">
+            {(() => {
+              const allTxs: ParsedTx[] = latestBlocks.flatMap((block) =>
+                (block.transactions || []).map((tx, txIdx) =>
+                  parseBlockTransaction(tx as unknown as Record<string, unknown>, block.timestamp, block.height, txIdx)
+                )
+              );
+              if (allTxs.length === 0) {
+                return <div className="px-5 py-8 text-center text-sm text-muted">No transactions yet</div>;
+              }
+              return allTxs.slice(0, 8).map((tx, i) => (
+                <div key={i} className="flex items-center gap-4 px-5 py-3 hover:bg-primary/5 transition-colors">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-400">
+                    <ArrowRightLeft className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {tx.hash.includes(":") ? (
+                        <a href={`/block/${tx.blockHeight}`} className="text-sm font-mono text-primary hover:underline">
+                          Block #{tx.blockHeight}
+                        </a>
+                      ) : (
+                        <a href={`/tx/${tx.hash}`} className="text-sm font-mono text-primary hover:underline">
+                          {truncateAddress(tx.hash, 8)}
+                        </a>
+                      )}
+                      <span className="text-xs text-muted">{tx.timestamp ? formatTimeAgo(tx.timestamp) : "—"}</span>
+                    </div>
+                    <div className="text-xs text-muted mt-0.5">
+                      {tx.from ? (
+                        <>
+                          From{" "}
+                          <a href={`/address/${tx.from}`} className="text-primary/60 hover:text-primary font-mono">
+                            {truncateAddress(tx.from, 4)}
                           </a>
-                        ) : (
-                          <a href={`/tx/${tx.hash}`} className="text-primary hover:underline">
-                            {truncateAddress(tx.hash)}
+                        </>
+                      ) : null}
+                      {tx.to ? (
+                        <>
+                          {" → "}
+                          <a href={`/address/${tx.to}`} className="text-primary/60 hover:text-primary font-mono">
+                            {truncateAddress(tx.to, 4)}
                           </a>
-                        )}
-                      </td>
-                      <td className="px-6 py-3">
-                        <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                          {TX_TYPE_NAMES[tx.txType] ?? `Type ${tx.txType}`}
-                        </span>
-                      </td>
-                      <td className="px-6 py-3 font-mono text-muted text-xs">
-                        {tx.from ? (
-                          <a href={`/address/${tx.from}`} className="text-primary/70 hover:text-primary hover:underline">
-                            {truncateAddress(tx.from)}
-                          </a>
-                        ) : "\u2014"}
-                      </td>
-                      <td className="px-6 py-3 font-mono text-muted text-xs">
-                        {tx.to ? (
-                          <a href={`/address/${tx.to}`} className="text-primary/70 hover:text-primary hover:underline">
-                            {truncateAddress(tx.to)}
-                          </a>
-                        ) : "\u2014"}
-                      </td>
-                      <td className="px-6 py-3 text-muted text-xs">
-                        {tx.amount ? (
-                          <span className="text-green-400">{formatCLAW(tx.amount)} CLAW</span>
-                        ) : "\u2014"}
-                      </td>
-                      <td className="px-6 py-3 text-muted text-xs">
-                        {tx.timestamp ? new Date(tx.timestamp * 1000).toLocaleTimeString() : "\u2014"}
-                      </td>
-                    </tr>
-                ));
-              })()}
-            </tbody>
-          </table>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] text-primary whitespace-nowrap">
+                      {TX_TYPE_NAMES[tx.txType] ?? `Type ${tx.txType}`}
+                    </span>
+                    {tx.amount ? (
+                      <span className="text-[10px] text-emerald-400 font-mono">{formatCLAW(tx.amount)} CLAW</span>
+                    ) : null}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+/* ── Helper Components ── */
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  subtext,
+  color = "text-primary",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  subtext?: string;
+  color?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-surface/50 p-5 relative overflow-hidden group hover:border-primary/30 transition-colors">
+      <div className="absolute -right-3 -top-3 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity">
+        <Icon className="h-20 w-20" />
+      </div>
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className={`h-4 w-4 ${color} opacity-70`} />
+        <span className="text-xs text-muted uppercase tracking-wider">{label}</span>
+      </div>
+      <span className={`text-2xl font-bold ${color}`}>{value}</span>
+      {subtext && <p className="text-[10px] text-muted mt-1">{subtext}</p>}
+    </div>
+  );
+}
+
+function MiniStat({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-surface/30 px-4 py-3">
+      <Icon className="h-4 w-4 text-primary/40 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-[10px] text-muted uppercase tracking-wider">{label}</p>
+        <p className="text-sm font-semibold text-text">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function formatTimeAgo(timestamp: number): string {
+  const now = Math.floor(Date.now() / 1000);
+  const diff = now - timestamp;
+  if (diff < 0) return "just now";
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
