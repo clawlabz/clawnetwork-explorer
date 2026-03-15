@@ -6,6 +6,8 @@ const ALLOWED_METHODS = new Set([
   "clw_getNonce", "clw_getAgent", "clw_getReputation",
   "clw_getServices", "clw_getTransactionByHash", "clw_getTransactionsByAddress",
   "clw_listTokens", "clw_getValidators",
+  "clw_getContractInfo", "clw_getContractCode",
+  "clw_getContractStorage", "clw_callContractView",
 ]);
 
 export async function POST(req: NextRequest) {

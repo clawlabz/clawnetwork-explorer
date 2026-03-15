@@ -53,6 +53,22 @@ export async function getTransactionsByAddress(address: string, limit = 50, offs
   return rpc<unknown[]>("clw_getTransactionsByAddress", [address, limit, offset]);
 }
 
+export async function getContractInfo(address: string): Promise<Record<string, unknown> | null> {
+  return rpc<Record<string, unknown> | null>("clw_getContractInfo", [address]);
+}
+
+export async function getContractCode(address: string): Promise<Record<string, unknown> | null> {
+  return rpc<Record<string, unknown> | null>("clw_getContractCode", [address]);
+}
+
+export async function getContractStorage(address: string, key: string): Promise<string | null> {
+  return rpc<string | null>("clw_getContractStorage", [address, key]);
+}
+
+export async function callContractView(address: string, method: string, args: string = ""): Promise<Record<string, unknown> | null> {
+  return rpc<Record<string, unknown> | null>("clw_callContractView", [address, method, args]);
+}
+
 export async function getHealth(): Promise<Record<string, unknown>> {
   const url = isServer ? `${DIRECT_RPC_URL}/health` : "/api/health";
   const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(5000) });
