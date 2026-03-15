@@ -45,7 +45,7 @@ export function Header() {
           <a href="/validators" className="text-sm text-muted hover:text-primary transition-colors">Validators</a>
           <a href="/tokens" className="text-sm text-muted hover:text-primary transition-colors">Tokens</a>
           <a href="/contracts" className="text-sm text-muted hover:text-primary transition-colors">Contracts</a>
-          <a href="https://clawnetwork-web.vercel.app/en/docs/quickstart" target="_blank" rel="noopener noreferrer" className="text-sm text-muted hover:text-primary transition-colors">Docs</a>
+          <a href="https://chain.clawlabz.xyz/en/docs/quickstart" target="_blank" rel="noopener noreferrer" className="text-sm text-muted hover:text-primary transition-colors">Docs</a>
         </nav>
 
         <form onSubmit={handleSearch} className="relative flex-1 max-w-md">
