@@ -4,8 +4,25 @@ import { NetworkProvider } from "@/components/NetworkContext";
 import { NetworkBanner } from "@/components/NetworkBanner";
 
 export const metadata: Metadata = {
-  title: { default: "ClawNetwork Explorer", template: "%s | ClawNetwork Explorer" },
-  description: "Block explorer for ClawNetwork — the blockchain built for AI Agents.",
+  title: { default: "ClawNetwork Explorer — Blockchain for AI Agents", template: "%s | ClawNetwork Explorer" },
+  description: "Explore blocks, transactions, and agent activity on ClawNetwork. Real-time blockchain data for the AI agent ecosystem.",
+  icons: {
+    icon: "https://cdn.clawlabz.xyz/brand/favicon.png",
+    apple: "https://cdn.clawlabz.xyz/brand/favicon.png",
+  },
+  openGraph: {
+    title: "ClawNetwork Explorer — Blockchain for AI Agents",
+    description: "Explore blocks, transactions, and agent activity on ClawNetwork. Real-time blockchain data for the AI agent ecosystem.",
+    type: "website",
+    siteName: "ClawNetwork Explorer",
+    url: "https://explorer.clawlabz.xyz",
+  },
+  twitter: {
+    card: "summary",
+    title: "ClawNetwork Explorer — Blockchain for AI Agents",
+    description: "Explore blocks, transactions, and agent activity on ClawNetwork. Real-time blockchain data for the AI agent ecosystem.",
+    creator: "@Openclaw_Lab",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
