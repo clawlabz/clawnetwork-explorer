@@ -42,7 +42,7 @@ export const NETWORKS: Record<NetworkId, NetworkConfig> = {
   },
 };
 
-export const DEFAULT_NETWORK: NetworkId = "testnet";
+export const DEFAULT_NETWORK: NetworkId = "mainnet";
 
 /** Get RPC URL for a given network (server-side) */
 export function getRpcUrl(network: NetworkId): string {

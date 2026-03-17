@@ -143,7 +143,9 @@ export function Dashboard() {
   const version = (health?.version as string) || "unknown";
   const epoch = (health?.epoch as number) || 0;
   const mempoolSize = (health?.mempool_size as number) || 0;
-  const status = (health?.status as string) || "unknown";
+  const rawStatus = (health?.status as string) || "unknown";
+  // RPC returns "ok" for healthy status — normalize to standard labels
+  const status = rawStatus === "ok" ? "healthy" : rawStatus;
 
   const formatUptime = (secs: number) => {
     if (secs < 60) return `${secs}s`;
