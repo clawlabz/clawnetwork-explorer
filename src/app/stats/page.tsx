@@ -163,8 +163,8 @@ export default function StatsPage() {
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="blockTimeGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#00eeff" stopOpacity={0.2} />
-                  <stop offset="100%" stopColor="#00eeff" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#F96706" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#F96706" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#333" />
@@ -181,8 +181,8 @@ export default function StatsPage() {
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1a1a2e",
-                  border: "1px solid #333",
+                  backgroundColor: "#140E0A",
+                  border: "1px solid #2A1C14",
                   borderRadius: "8px",
                   color: "#fff",
                   fontSize: 12,
@@ -193,12 +193,12 @@ export default function StatsPage() {
               <Area
                 type="monotone"
                 dataKey="blockTime"
-                stroke="#00eeff"
+                stroke="#F96706"
                 strokeWidth={2}
                 fill="url(#blockTimeGradient)"
                 fillOpacity={1}
                 dot={false}
-                activeDot={{ r: 4, fill: "#00eeff" }}
+                activeDot={{ r: 4, fill: "#F96706" }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -229,8 +229,8 @@ export default function StatsPage() {
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1a1a2e",
-                  border: "1px solid #333",
+                  backgroundColor: "#140E0A",
+                  border: "1px solid #2A1C14",
                   borderRadius: "8px",
                   color: "#fff",
                   fontSize: 12,
@@ -240,7 +240,7 @@ export default function StatsPage() {
               />
               <Bar
                 dataKey="txCount"
-                fill="#00eeff"
+                fill="#F96706"
                 fillOpacity={0.6}
                 radius={[4, 4, 0, 0]}
                 maxBarSize={20}

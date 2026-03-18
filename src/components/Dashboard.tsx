@@ -165,7 +165,7 @@ export function Dashboard() {
       {/* Hero Stats - Primary Metrics */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard icon={Layers} label="Block Height" value={height.toLocaleString()} color="text-primary" />
-        <StatCard icon={ArrowRightLeft} label="Transactions" value={totalTxns.toLocaleString()} subtext={`in last ${latestBlocks.length} blocks`} color="text-emerald-400" />
+        <StatCard icon={ArrowRightLeft} label="Transactions" value={totalTxns.toLocaleString()} subtext={`in last ${latestBlocks.length} blocks`} color="text-orange-500" />
         <StatCard icon={Zap} label="TPS" value={tps.toString()} subtext="transactions/sec" color="text-yellow-400" />
         <StatCard icon={Users} label="Validators" value={validatorCount.toString()} subtext="active" color="text-purple-400" />
       </div>
@@ -184,7 +184,7 @@ export function Dashboard() {
         <div className="flex items-center gap-2">
           <span className={`inline-block h-2.5 w-2.5 rounded-full ${status === "healthy" ? "bg-emerald-400" : status === "degraded" ? "bg-yellow-400" : "bg-red-400"}`} />
           <span className="text-xs uppercase tracking-wider text-muted">Network</span>
-          <span className={`text-xs font-semibold ${status === "healthy" ? "text-emerald-400" : status === "degraded" ? "text-yellow-400" : "text-red-400"}`}>
+          <span className={`text-xs font-semibold ${status === "healthy" ? "text-orange-500" : status === "degraded" ? "text-yellow-400" : "text-red-400"}`}>
             {status}
           </span>
         </div>
@@ -215,18 +215,18 @@ export function Dashboard() {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="btGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#00eeff" stopOpacity={0.15} />
-                      <stop offset="100%" stopColor="#00eeff" stopOpacity={0} />
+                      <stop offset="0%" stopColor="#F96706" stopOpacity={0.15} />
+                      <stop offset="100%" stopColor="#F96706" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="block" tick={{ fill: "#666", fontSize: 10 }} tickFormatter={(v) => `${v}`} stroke="transparent" />
                   <YAxis tick={{ fill: "#666", fontSize: 10 }} stroke="transparent" width={30} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: "#0f2223", border: "1px solid #1d3d3f", borderRadius: "8px", color: "#e8e8e8", fontSize: 12 }}
+                    contentStyle={{ backgroundColor: "#140E0A", border: "1px solid #2A1C14", borderRadius: "8px", color: "#e8e8e8", fontSize: 12 }}
                     labelFormatter={(v) => `Block #${v}`}
                     formatter={(value) => [`${value}s`, "Block Time"]}
                   />
-                  <Area type="monotone" dataKey="blockTime" stroke="#00eeff" strokeWidth={2} fill="url(#btGrad)" dot={false} activeDot={{ r: 3, fill: "#00eeff" }} />
+                  <Area type="monotone" dataKey="blockTime" stroke="#F96706" strokeWidth={2} fill="url(#btGrad)" dot={false} activeDot={{ r: 3, fill: "#F96706" }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -235,7 +235,7 @@ export function Dashboard() {
           {/* Transaction Activity Chart */}
           <div className="rounded-xl border border-border bg-surface/50 p-5">
             <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-              <ArrowRightLeft className="h-4 w-4 text-emerald-400" />
+              <ArrowRightLeft className="h-4 w-4 text-orange-500" />
               Transaction Activity
               <span className="text-xs font-normal text-muted">per block</span>
             </h3>
@@ -245,11 +245,11 @@ export function Dashboard() {
                   <XAxis dataKey="block" tick={{ fill: "#666", fontSize: 10 }} tickFormatter={(v) => `${v}`} stroke="transparent" />
                   <YAxis tick={{ fill: "#666", fontSize: 10 }} stroke="transparent" width={30} allowDecimals={false} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: "#0f2223", border: "1px solid #1d3d3f", borderRadius: "8px", color: "#e8e8e8", fontSize: 12 }}
+                    contentStyle={{ backgroundColor: "#140E0A", border: "1px solid #2A1C14", borderRadius: "8px", color: "#e8e8e8", fontSize: 12 }}
                     labelFormatter={(v) => `Block #${v}`}
                     formatter={(value) => [value, "Transactions"]}
                   />
-                  <Bar dataKey="txCount" fill="#34d399" fillOpacity={0.7} radius={[3, 3, 0, 0]} maxBarSize={16} />
+                  <Bar dataKey="txCount" fill="#F96706" fillOpacity={0.7} radius={[3, 3, 0, 0]} maxBarSize={16} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -311,7 +311,7 @@ export function Dashboard() {
         <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 className="text-sm font-semibold flex items-center gap-2">
-              <ArrowRightLeft className="h-4 w-4 text-emerald-400" /> Latest Transactions
+              <ArrowRightLeft className="h-4 w-4 text-orange-500" /> Latest Transactions
             </h2>
           </div>
           <div className="divide-y divide-border/50">
@@ -326,7 +326,7 @@ export function Dashboard() {
               }
               return allTxs.slice(0, 8).map((tx, i) => (
                 <div key={i} className="flex items-center gap-4 px-5 py-3 hover:bg-primary/5 transition-colors">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-400">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500">
                     <ArrowRightLeft className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -366,7 +366,7 @@ export function Dashboard() {
                       {TX_TYPE_NAMES[tx.txType] ?? `Type ${tx.txType}`}
                     </span>
                     {tx.amount ? (
-                      <span className="text-[10px] text-emerald-400 font-mono">{formatCLAW(tx.amount)} CLAW</span>
+                      <span className="text-[10px] text-orange-500 font-mono">{formatCLAW(tx.amount)} CLAW</span>
                     ) : null}
                   </div>
                 </div>

@@ -31,7 +31,7 @@ export const NETWORKS: Record<NetworkId, NetworkConfig> = {
     name: "Mainnet",
     rpcUrl: MAINNET_RPC,
     badge: "Mainnet",
-    color: "#00ff88",
+    color: "#F96706",
   },
   testnet: {
     id: "testnet",
