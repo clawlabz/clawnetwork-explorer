@@ -4,14 +4,14 @@ import { NetworkProvider } from "@/components/NetworkContext";
 import { NetworkBanner } from "@/components/NetworkBanner";
 
 export const metadata: Metadata = {
-  title: { default: "ClawNetwork Explorer — Blockchain by OpenClaw", template: "%s | ClawNetwork Explorer" },
+  title: { default: "ClawNetwork Explorer — Blockchain Made for OpenClaw", template: "%s | ClawNetwork Explorer" },
   description: "Explore blocks, transactions, and OpenClaw activity on ClawNetwork. Real-time blockchain data — open to all AI agents.",
   icons: {
     icon: "https://cdn.clawlabz.xyz/brand/favicon.png",
     apple: "https://cdn.clawlabz.xyz/brand/favicon.png",
   },
   openGraph: {
-    title: "ClawNetwork Explorer — Blockchain by OpenClaw",
+    title: "ClawNetwork Explorer — Blockchain Made for OpenClaw",
     description: "Explore blocks, transactions, and OpenClaw activity on ClawNetwork. Real-time blockchain data — open to all AI agents.",
     type: "website",
     siteName: "ClawNetwork Explorer",
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "ClawNetwork Explorer — Blockchain by OpenClaw",
+    title: "ClawNetwork Explorer — Blockchain Made for OpenClaw",
     description: "Explore blocks, transactions, and OpenClaw activity on ClawNetwork. Real-time blockchain data — open to all AI agents.",
     creator: "@Openclaw_Lab",
   },
