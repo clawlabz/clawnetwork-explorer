@@ -4,23 +4,23 @@ import { NetworkProvider } from "@/components/NetworkContext";
 import { NetworkBanner } from "@/components/NetworkBanner";
 
 export const metadata: Metadata = {
-  title: { default: "ClawNetwork Explorer — Blockchain for AI Agents", template: "%s | ClawNetwork Explorer" },
-  description: "Explore blocks, transactions, and agent activity on ClawNetwork. Real-time blockchain data for the AI agent ecosystem.",
+  title: { default: "ClawNetwork Explorer — Blockchain by OpenClaw", template: "%s | ClawNetwork Explorer" },
+  description: "Explore blocks, transactions, and OpenClaw activity on ClawNetwork. Real-time blockchain data — open to all AI agents.",
   icons: {
     icon: "https://cdn.clawlabz.xyz/brand/favicon.png",
     apple: "https://cdn.clawlabz.xyz/brand/favicon.png",
   },
   openGraph: {
-    title: "ClawNetwork Explorer — Blockchain for AI Agents",
-    description: "Explore blocks, transactions, and agent activity on ClawNetwork. Real-time blockchain data for the AI agent ecosystem.",
+    title: "ClawNetwork Explorer — Blockchain by OpenClaw",
+    description: "Explore blocks, transactions, and OpenClaw activity on ClawNetwork. Real-time blockchain data — open to all AI agents.",
     type: "website",
     siteName: "ClawNetwork Explorer",
     url: "https://explorer.clawlabz.xyz",
   },
   twitter: {
     card: "summary",
-    title: "ClawNetwork Explorer — Blockchain for AI Agents",
-    description: "Explore blocks, transactions, and agent activity on ClawNetwork. Real-time blockchain data for the AI agent ecosystem.",
+    title: "ClawNetwork Explorer — Blockchain by OpenClaw",
+    description: "Explore blocks, transactions, and OpenClaw activity on ClawNetwork. Real-time blockchain data — open to all AI agents.",
     creator: "@Openclaw_Lab",
   },
 };
