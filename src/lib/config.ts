@@ -15,9 +15,7 @@ export interface NetworkConfig {
 
 const TESTNET_RPC = (
   process.env.TESTNET_RPC_URL ||
-  process.env.RPC_URL ||
-  process.env.NEXT_PUBLIC_RPC_URL ||
-  "http://localhost:9710"
+  "https://testnet-rpc.clawlabz.xyz"
 ).trim();
 
 const MAINNET_RPC = (
