@@ -86,6 +86,52 @@ export async function callContractView(address: string, method: string, args: st
   return rpc<Record<string, unknown> | null>("clw_callContractView", [address, method, args]);
 }
 
+export interface AgentScore {
+  total_score: number;
+  activity_score: number;
+  uptime_score: number;
+  block_production_score: number;
+  economic_score: number;
+  platform_score: number;
+  decay_factor: number;
+}
+
+export async function getAgentScore(address: string): Promise<AgentScore | null> {
+  try {
+    return await rpc<AgentScore | null>("clw_getAgentScore", [address]);
+  } catch {
+    return null;
+  }
+}
+
+export interface PlatformActivityEntry {
+  agent_address: string;
+  action_count: number;
+  action_type: string;
+}
+
+export interface PlatformActivityReportPayload {
+  platform: string;
+  entries: PlatformActivityEntry[];
+}
+
+/** Parse PlatformActivityReport payload (type 11) from Borsh-encoded bytes */
+export function parsePlatformActivityReportPayload(payloadBytes: number[]): PlatformActivityReportPayload {
+  const r: BorshReader = { data: payloadBytes, offset: 0 };
+  const platform = borshReadString(r);
+  const entryCount = borshReadU32LE(r);
+  const entries: PlatformActivityEntry[] = [];
+  for (let i = 0; i < entryCount; i++) {
+    const addrBytes = r.data.slice(r.offset, r.offset + 32);
+    r.offset += 32;
+    const agent_address = toHexAddress(addrBytes);
+    const action_count = borshReadU32LE(r);
+    const action_type = borshReadString(r);
+    entries.push({ agent_address, action_count, action_type });
+  }
+  return { platform, entries };
+}
+
 export async function getHealth(): Promise<Record<string, unknown>> {
   const network = getClientNetwork();
 
@@ -147,8 +193,14 @@ export const TX_TYPE_NAMES: Record<number, string> = {
   1: "TokenTransfer",
   2: "TokenCreate",
   3: "TokenMintTransfer",
-  4: "ReputationAttest",
+  4: "ReputationAttest (Deprecated)",
   5: "ServiceRegister",
+  6: "StakeDeposit",
+  7: "StakeWithdraw",
+  8: "ContractDeploy",
+  9: "ContractCall",
+  10: "ContractTransfer",
+  11: "PlatformActivityReport",
 };
 
 const TX_TYPE_STRING_TO_NUM: Record<string, number> = {
@@ -158,6 +210,12 @@ const TX_TYPE_STRING_TO_NUM: Record<string, number> = {
   TokenMintTransfer: 3,
   ReputationAttest: 4,
   ServiceRegister: 5,
+  StakeDeposit: 6,
+  StakeWithdraw: 7,
+  ContractDeploy: 8,
+  ContractCall: 9,
+  ContractTransfer: 10,
+  PlatformActivityReport: 11,
 };
 
 export function parseBlockTransaction(

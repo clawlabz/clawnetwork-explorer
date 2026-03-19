@@ -1,8 +1,8 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getBalance, getNonce, getAgent, getReputation, getTransactionsByAddress, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES } from "@/lib/rpc";
-import { ArrowLeft, User, Coins, Shield, ArrowRightLeft } from "lucide-react";
+import { getBalance, getNonce, getAgent, getReputation, getTransactionsByAddress, getAgentScore, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, type AgentScore } from "@/lib/rpc";
+import { ArrowLeft, User, Coins, Shield, ArrowRightLeft, Star, Activity, Clock, Blocks, Wallet, Globe } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
@@ -27,14 +27,16 @@ export default async function AddressPage({ params, searchParams }: Props) {
   let agent: Record<string, unknown> | null = null;
   let reputation: unknown[] = [];
   let transactions: Record<string, unknown>[] = [];
+  let agentScore: AgentScore | null = null;
 
   try {
-    [balance, nonce, agent, reputation, transactions] = await Promise.all([
+    [balance, nonce, agent, reputation, transactions, agentScore] = await Promise.all([
       getBalance(address),
       getNonce(address),
       getAgent(address),
       getReputation(address),
       getTransactionsByAddress(address, PAGE_SIZE + 1, offset) as Promise<Record<string, unknown>[]>,
+      getAgentScore(address),
     ]);
   } catch (e) {
     console.error("Failed to fetch address data:", e);
@@ -107,11 +109,52 @@ export default async function AddressPage({ params, searchParams }: Props) {
           </div>
         )}
 
-        {/* Reputation */}
+        {/* Agent Score */}
+        <div className="mb-8 rounded-xl border border-border bg-surface/50 overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-border">
+            <Star className="h-4 w-4 text-primary" />
+            <h2 className="font-semibold">Agent Score</h2>
+          </div>
+          {agentScore ? (
+            <div className="p-6">
+              {/* Total Score */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10">
+                  <span className="text-2xl font-bold text-primary">{agentScore.total_score.toLocaleString()}</span>
+                </div>
+                <div>
+                  <p className="text-sm text-muted">Total Score</p>
+                  <p className="text-xs text-muted mt-0.5">
+                    Decay Factor: <span className="text-text font-semibold">{(agentScore.decay_factor * 100).toFixed(1)}%</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Score Dimensions */}
+              <div className="space-y-3">
+                <ScoreBar icon={Activity} label="Activity" score={agentScore.activity_score} max={10000} />
+                <ScoreBar icon={Clock} label="Uptime" score={agentScore.uptime_score} max={10000} />
+                <ScoreBar icon={Blocks} label="Block Production" score={agentScore.block_production_score} max={10000} />
+                <ScoreBar icon={Wallet} label="Economic" score={agentScore.economic_score} max={10000} />
+                <ScoreBar icon={Globe} label="Platform" score={agentScore.platform_score} max={10000} />
+              </div>
+            </div>
+          ) : (
+            <div className="px-6 py-8 text-center">
+              <p className="text-sm text-muted">Not a registered agent</p>
+              <p className="text-xs text-muted/60 mt-1">Agent Score is only available for registered agents on the network.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Reputation (Deprecated) */}
         {reputation.length > 0 && (
           <div className="mb-8 rounded-xl border border-border bg-surface/50 overflow-hidden">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-semibold">Reputation Attestations ({reputation.length})</h2>
+              <h2 className="font-semibold">
+                Reputation Attestations ({reputation.length})
+                <span className="ml-2 rounded bg-yellow-500/10 px-2 py-0.5 text-xs text-yellow-500">Deprecated</span>
+              </h2>
             </div>
             <div className="p-6">
               <pre className="text-xs text-muted overflow-x-auto">{JSON.stringify(reputation, null, 2)}</pre>
@@ -234,5 +277,36 @@ export default async function AddressPage({ params, searchParams }: Props) {
       </main>
       <Footer />
     </>
+  );
+}
+
+/* ── Helper Components ── */
+
+function ScoreBar({
+  icon: Icon,
+  label,
+  score,
+  max,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  score: number;
+  max: number;
+}) {
+  const pct = Math.min(100, Math.max(0, (score / max) * 100));
+  return (
+    <div className="flex items-center gap-3">
+      <Icon className="h-4 w-4 text-muted shrink-0" />
+      <span className="w-32 shrink-0 text-xs text-muted">{label}</span>
+      <div className="flex-1 h-2 rounded-full bg-border/50 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-primary transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="w-20 text-right font-mono text-xs text-text shrink-0">
+        {score.toLocaleString()} / {max.toLocaleString()}
+      </span>
+    </div>
   );
 }

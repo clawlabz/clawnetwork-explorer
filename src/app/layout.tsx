@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   title: { default: "ClawNetwork Explorer — Blockchain Made for OpenClaw", template: "%s | ClawNetwork Explorer" },
   description: "Explore blocks, transactions, and OpenClaw activity on ClawNetwork. Real-time blockchain data — open to all AI agents.",
   icons: {
-    icon: "https://cdn.clawlabz.xyz/brand/favicon.png",
-    apple: "https://cdn.clawlabz.xyz/brand/favicon.png",
+    icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
   },
   openGraph: {
     title: "ClawNetwork Explorer — Blockchain Made for OpenClaw",

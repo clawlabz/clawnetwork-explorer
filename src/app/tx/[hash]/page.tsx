@@ -1,9 +1,9 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getTransactionByHash, formatCLAW, truncateAddress, toHexAddress } from "@/lib/rpc";
+import { getTransactionByHash, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, parsePlatformActivityReportPayload, type PlatformActivityReportPayload } from "@/lib/rpc";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRightLeft } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, FileText } from "lucide-react";
 
 type Props = { params: Promise<{ hash: string }> };
 
@@ -44,7 +44,10 @@ export default async function TransactionPage({ params }: Props) {
   if (!tx) notFound();
 
   const txHash = toHexAddress(tx.hash) || String(tx.hash ?? hash);
-  const typeName = String(tx.type_name ?? tx.typeName ?? tx.type ?? "Unknown");
+  const rawTxType = tx.tx_type as number | undefined;
+  const typeName = rawTxType !== undefined
+    ? (TX_TYPE_NAMES[rawTxType] ?? String(tx.type_name ?? tx.typeName ?? `Type ${rawTxType}`))
+    : String(tx.type_name ?? tx.typeName ?? tx.type ?? "Unknown");
   const from = toHexAddress(tx.from);
   const to = toHexAddress(tx.to);
   const amount = tx.amount != null ? String(tx.amount) : null;
@@ -52,6 +55,17 @@ export default async function TransactionPage({ params }: Props) {
   const nonce = tx.nonce as number | undefined;
   const blockHeight = tx.block_height as number ?? tx.blockHeight as number ?? null;
   const timestamp = tx.timestamp as number ?? 0;
+  const payload = tx.payload as number[] | undefined;
+
+  // Parse PlatformActivityReport payload
+  let activityReport: PlatformActivityReportPayload | null = null;
+  if (rawTxType === 11 && payload && payload.length > 0) {
+    try {
+      activityReport = parsePlatformActivityReportPayload(payload);
+    } catch {
+      // Payload parsing failed — ignore
+    }
+  }
 
   const rows: { label: string; value: string; link?: string; copy?: boolean }[] = [
     { label: "TX Hash", value: txHash, copy: true },
@@ -118,6 +132,56 @@ export default async function TransactionPage({ params }: Props) {
             </div>
           ))}
         </div>
+
+        {/* PlatformActivityReport Details */}
+        {activityReport && (
+          <div className="mt-6 rounded-xl border border-border bg-surface/50 overflow-hidden">
+            <div className="flex items-center gap-2 px-6 py-4 border-b border-border">
+              <FileText className="h-4 w-4 text-primary" />
+              <h2 className="font-semibold">Platform Activity Report</h2>
+              <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary ml-2">
+                {activityReport.platform}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left">Agent Address</th>
+                    <th className="px-6 py-3 text-left">Action Type</th>
+                    <th className="px-6 py-3 text-right">Action Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activityReport.entries.length === 0 ? (
+                    <tr><td colSpan={3} className="px-6 py-6 text-center text-muted">No activity entries</td></tr>
+                  ) : (
+                    activityReport.entries.map((entry, i) => (
+                      <tr key={i} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
+                        <td className="px-6 py-3 font-mono text-xs">
+                          <a href={`/address/${entry.agent_address}`} className="text-primary hover:underline">
+                            {truncateAddress(entry.agent_address, 8)}
+                          </a>
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className="rounded bg-accent/10 px-2 py-0.5 text-xs text-accent">
+                            {entry.action_type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-right font-mono text-xs text-text">
+                          {entry.action_count.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-6 py-3 border-t border-border text-xs text-muted">
+              {activityReport.entries.length} entr{activityReport.entries.length === 1 ? "y" : "ies"} reported
+            </div>
+          </div>
+        )}
       </main>
       <Footer />
     </>
