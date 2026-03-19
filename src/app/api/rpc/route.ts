@@ -8,6 +8,7 @@ const ALLOWED_METHODS = new Set([
   "clw_listTokens", "clw_getValidators",
   "clw_getContractInfo", "clw_getContractCode",
   "clw_getContractStorage", "clw_callContractView",
+  "clw_getAgentScore",
 ]);
 
 function parseNetwork(req: NextRequest): NetworkId {
