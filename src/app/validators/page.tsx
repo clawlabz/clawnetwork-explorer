@@ -1,56 +1,29 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { getBlockNumber, getBlock, toHexAddress, truncateAddress } from "@/lib/rpc";
+import { getValidators, formatCLAW, truncateAddress } from "@/lib/rpc";
 import { Shield, ArrowLeft } from "lucide-react";
 
 export const metadata = { title: "Validators" };
 
-interface ValidatorStats {
+interface Validator {
   address: string;
-  blocksProposed: number;
-  lastActive: number;
-}
-
-async function getValidatorsFromBlocks(): Promise<ValidatorStats[]> {
-  const height = await getBlockNumber();
-  const count = Math.min(height, 200);
-  const start = Math.max(0, height - count + 1);
-
-  const blockPromises = [];
-  for (let i = height; i >= start; i--) {
-    blockPromises.push(getBlock(i));
-  }
-
-  const blocks = (await Promise.all(blockPromises)).filter(Boolean) as Record<string, unknown>[];
-  const map = new Map<string, { count: number; lastActive: number }>();
-
-  for (const block of blocks) {
-    const addr = toHexAddress(block.validator);
-    if (!addr) continue;
-    const ts = block.timestamp as number || 0;
-    const existing = map.get(addr);
-    if (existing) {
-      existing.count++;
-      if (ts > existing.lastActive) existing.lastActive = ts;
-    } else {
-      map.set(addr, { count: 1, lastActive: ts });
-    }
-  }
-
-  return Array.from(map.entries())
-    .map(([address, { count, lastActive }]) => ({ address, blocksProposed: count, lastActive }))
-    .sort((a, b) => b.blocksProposed - a.blocksProposed);
+  stake: string;
+  weight: number;
+  agentScore: number;
 }
 
 export default async function ValidatorsPage() {
-  let validators: ValidatorStats[] = [];
+  let validators: Validator[] = [];
   let fetchError: string | null = null;
 
   try {
-    validators = await getValidatorsFromBlocks();
+    const raw = await getValidators() as Validator[];
+    validators = [...raw].sort((a, b) => b.weight - a.weight);
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to fetch validator data";
   }
+
+  const totalWeight = validators.reduce((sum, v) => sum + v.weight, 0);
 
   return (
     <>
@@ -66,7 +39,7 @@ export default async function ValidatorsPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Validators</h1>
-            <p className="text-xs text-muted mt-0.5">Block proposers from the last 200 blocks</p>
+            <p className="text-xs text-muted mt-0.5">Active validators on the network</p>
           </div>
         </div>
 
@@ -83,9 +56,9 @@ export default async function ValidatorsPage() {
                   <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
                     <th className="px-6 py-3 text-left">#</th>
                     <th className="px-6 py-3 text-left">Address</th>
-                    <th className="px-6 py-3 text-left">Blocks Proposed</th>
-                    <th className="px-6 py-3 text-left">Share</th>
-                    <th className="px-6 py-3 text-left">Last Active</th>
+                    <th className="px-6 py-3 text-left">Stake (CLAW)</th>
+                    <th className="px-6 py-3 text-left">Weight</th>
+                    <th className="px-6 py-3 text-left">Agent Score</th>
                     <th className="px-6 py-3 text-left">Status</th>
                   </tr>
                 </thead>
@@ -93,11 +66,9 @@ export default async function ValidatorsPage() {
                   {validators.length === 0 ? (
                     <tr><td colSpan={6} className="px-6 py-8 text-center text-muted">No validators found</td></tr>
                   ) : (
-                    (() => {
-                      const totalBlocks = validators.reduce((sum, x) => sum + x.blocksProposed, 0);
-                      return validators.map((v, i) => {
-                      const share = totalBlocks > 0 ? ((v.blocksProposed / totalBlocks) * 100).toFixed(1) : "0";
-                      const isRecent = v.lastActive > 0 && (Date.now() / 1000 - v.lastActive) < 300;
+                    validators.map((v, i) => {
+                      const weightShare = totalWeight > 0 ? ((v.weight / totalWeight) * 100).toFixed(1) : "0";
+                      const isActive = v.agentScore > 0 || BigInt(v.stake || "0") > BigInt(0);
                       return (
                         <tr key={v.address} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
                           <td className="px-6 py-3 text-muted">{i + 1}</td>
@@ -106,28 +77,25 @@ export default async function ValidatorsPage() {
                               {truncateAddress(v.address, 8)}
                             </a>
                           </td>
-                          <td className="px-6 py-3 font-bold">{v.blocksProposed}</td>
+                          <td className="px-6 py-3 font-bold">{formatCLAW(v.stake)}</td>
                           <td className="px-6 py-3">
                             <div className="flex items-center gap-2">
                               <div className="h-1.5 w-20 rounded-full bg-border overflow-hidden">
-                                <div className="h-full rounded-full bg-primary" style={{ width: `${share}%` }} />
+                                <div className="h-full rounded-full bg-primary" style={{ width: `${weightShare}%` }} />
                               </div>
-                              <span className="text-xs text-muted">{share}%</span>
+                              <span className="text-xs text-muted">{v.weight}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-3 text-muted text-xs">
-                            {v.lastActive ? new Date(v.lastActive * 1000).toLocaleString() : "—"}
-                          </td>
+                          <td className="px-6 py-3 text-muted">{v.agentScore}</td>
                           <td className="px-6 py-3">
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${isRecent ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"}`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${isRecent ? "bg-green-400" : "bg-yellow-400"}`} />
-                              {isRecent ? "Active" : "Idle"}
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${isActive ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-green-400" : "bg-yellow-400"}`} />
+                              {isActive ? "Active" : "Idle"}
                             </span>
                           </td>
                         </tr>
                       );
-                    });
-                    })()
+                    })
                   )}
                 </tbody>
               </table>

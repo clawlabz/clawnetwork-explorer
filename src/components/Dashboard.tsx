@@ -67,24 +67,48 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchDataRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  const lastFetchedHeightRef = useRef<number>(-1);
+  const cachedBlocksRef = useRef<BlockInfo[]>([]);
 
   fetchDataRef.current = async () => {
     try {
+      const MAX_BLOCKS = 30;
       const [h, height] = await Promise.all([getHealth(), getBlockNumber()]);
       setHealth(h);
 
-      // Fetch last 30 blocks for charts + tables
-      const count = Math.min(30, height + 1);
-      const start = Math.max(0, height - count + 1);
-      const blockPromises: Promise<Record<string, unknown> | null>[] = [];
-      for (let i = height; i >= start; i--) {
-        blockPromises.push(getBlock(i));
+      const lastHeight = lastFetchedHeightRef.current;
+      let allBlocks: BlockInfo[];
+
+      if (lastHeight < 0 || height - lastHeight > MAX_BLOCKS) {
+        // First load or large gap: fetch all blocks
+        const count = Math.min(MAX_BLOCKS, height + 1);
+        const start = Math.max(0, height - count + 1);
+        const blockPromises: Promise<Record<string, unknown> | null>[] = [];
+        for (let i = height; i >= start; i--) {
+          blockPromises.push(getBlock(i));
+        }
+        allBlocks = (await Promise.all(blockPromises)).filter(Boolean) as unknown as BlockInfo[];
+      } else if (height > lastHeight) {
+        // Incremental: only fetch new blocks since last poll
+        const blockPromises: Promise<Record<string, unknown> | null>[] = [];
+        for (let i = height; i > lastHeight; i--) {
+          blockPromises.push(getBlock(i));
+        }
+        const newBlocks = (await Promise.all(blockPromises)).filter(Boolean) as unknown as BlockInfo[];
+        // Merge with cached blocks, keep latest MAX_BLOCKS
+        const merged = [...newBlocks, ...cachedBlocksRef.current];
+        allBlocks = merged.slice(0, MAX_BLOCKS);
+      } else {
+        // No new blocks, reuse cached
+        allBlocks = cachedBlocksRef.current;
       }
-      const rawBlocks = (await Promise.all(blockPromises)).filter(Boolean) as unknown as BlockInfo[];
-      setLatestBlocks(rawBlocks);
+
+      lastFetchedHeightRef.current = height;
+      cachedBlocksRef.current = allBlocks;
+      setLatestBlocks(allBlocks);
 
       // Build chart data from sorted blocks
-      const sorted = [...rawBlocks].sort((a, b) => a.height - b.height);
+      const sorted = [...allBlocks].sort((a, b) => a.height - b.height);
       const points: ChartPoint[] = [];
       for (let i = 1; i < sorted.length; i++) {
         const timeDiff = sorted[i].timestamp - sorted[i - 1].timestamp;
@@ -319,6 +343,9 @@ export function Dashboard() {
             <h2 className="text-sm font-semibold flex items-center gap-2">
               <ArrowRightLeft className="h-4 w-4 text-orange-500" /> Latest Transactions
             </h2>
+            <a href="/transactions" className="flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors">
+              View All <ArrowUpRight className="h-3 w-3" />
+            </a>
           </div>
           <div className="divide-y divide-border/50">
             {(() => {

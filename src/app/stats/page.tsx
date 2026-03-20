@@ -42,30 +42,53 @@ export default function StatsPage() {
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
 
   const fetchDataRef = useRef<(() => Promise<void>) | undefined>(undefined);
+  const lastFetchedHeightRef = useRef<number>(-1);
+  const cachedBlocksRef = useRef<BlockData[]>([]);
 
   fetchDataRef.current = async () => {
     try {
+      const MAX_BLOCKS = 50;
       const [health, height] = await Promise.all([getHealth(), getBlockNumber()]);
       setBlockHeight(height);
 
-      // Fetch last 50 blocks
-      const count = Math.min(50, height + 1);
-      const start = Math.max(0, height - count + 1);
-      const blockPromises: Promise<Record<string, unknown> | null>[] = [];
-      for (let i = start; i <= height; i++) {
-        blockPromises.push(getBlock(i));
+      const lastHeight = lastFetchedHeightRef.current;
+      let blocks: BlockData[];
+
+      const toBlockData = (b: Record<string, unknown>): BlockData => ({
+        height: b.height as number,
+        timestamp: b.timestamp as number,
+        txCount: Array.isArray(b.transactions) ? (b.transactions as unknown[]).length : 0,
+        validator: String(b.validator ?? ""),
+      });
+
+      if (lastHeight < 0 || height - lastHeight > MAX_BLOCKS) {
+        // First load or large gap: fetch all blocks
+        const count = Math.min(MAX_BLOCKS, height + 1);
+        const start = Math.max(0, height - count + 1);
+        const blockPromises: Promise<Record<string, unknown> | null>[] = [];
+        for (let i = start; i <= height; i++) {
+          blockPromises.push(getBlock(i));
+        }
+        const rawBlocks = await Promise.all(blockPromises);
+        blocks = rawBlocks.filter(Boolean).map((b) => toBlockData(b!)).sort((a, b) => a.height - b.height);
+      } else if (height > lastHeight) {
+        // Incremental: only fetch new blocks since last poll
+        const blockPromises: Promise<Record<string, unknown> | null>[] = [];
+        for (let i = lastHeight + 1; i <= height; i++) {
+          blockPromises.push(getBlock(i));
+        }
+        const rawNewBlocks = await Promise.all(blockPromises);
+        const newBlocks = rawNewBlocks.filter(Boolean).map((b) => toBlockData(b!));
+        // Merge with cached, sort, keep latest MAX_BLOCKS
+        const merged = [...cachedBlocksRef.current, ...newBlocks].sort((a, b) => a.height - b.height);
+        blocks = merged.slice(-MAX_BLOCKS);
+      } else {
+        // No new blocks, reuse cached
+        blocks = cachedBlocksRef.current;
       }
 
-      const rawBlocks = await Promise.all(blockPromises);
-      const blocks: BlockData[] = rawBlocks
-        .filter(Boolean)
-        .map((b) => ({
-          height: b!.height as number,
-          timestamp: b!.timestamp as number,
-          txCount: Array.isArray(b!.transactions) ? (b!.transactions as unknown[]).length : 0,
-          validator: String(b!.validator ?? ""),
-        }))
-        .sort((a, b) => a.height - b.height);
+      lastFetchedHeightRef.current = height;
+      cachedBlocksRef.current = blocks;
 
       // Calculate chart data (block times between consecutive blocks)
       const points: ChartPoint[] = [];
