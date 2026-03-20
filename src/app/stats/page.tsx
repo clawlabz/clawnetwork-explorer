@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { getBlockNumber, getBlock, getHealth } from "@/lib/rpc";
 import { Layers, Clock, Activity, ArrowRightLeft, Users } from "lucide-react";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import {
   LineChart,
   Line,
@@ -130,6 +132,9 @@ export default function StatsPage() {
   ];
 
   return (
+    <>
+    <Header />
+    <main className="mx-auto max-w-7xl px-4 py-8 flex-1">
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold mb-1">Network Statistics</h1>
@@ -250,5 +255,8 @@ export default function StatsPage() {
         </div>
       </div>
     </div>
+    </main>
+    <Footer />
+    </>
   );
 }
