@@ -136,6 +136,14 @@ export async function getValidators(): Promise<unknown[]> {
   return rpc<unknown[]>("clw_getValidators");
 }
 
+export async function getStakeDelegation(address: string): Promise<string | null> {
+  try {
+    return await rpc<string | null>("clw_getStakeDelegation", [address]);
+  } catch {
+    return null;
+  }
+}
+
 export async function getHealth(): Promise<Record<string, unknown>> {
   const network = getClientNetwork();
 

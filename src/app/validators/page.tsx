@@ -1,6 +1,6 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { getValidators, formatCLAW, truncateAddress } from "@/lib/rpc";
+import { getValidators, getStakeDelegation, formatCLAW, truncateAddress } from "@/lib/rpc";
 import { Shield, ArrowLeft } from "lucide-react";
 
 export const metadata = { title: "Validators" };
@@ -14,11 +14,19 @@ interface Validator {
 
 export default async function ValidatorsPage() {
   let validators: Validator[] = [];
+  let delegations: Map<string, string | null> = new Map();
   let fetchError: string | null = null;
 
   try {
     const raw = await getValidators() as Validator[];
     validators = [...raw].sort((a, b) => b.weight - a.weight);
+
+    const delegationResults = await Promise.all(
+      validators.map(v => getStakeDelegation(v.address))
+    );
+    validators.forEach((v, i) => {
+      delegations.set(v.address, delegationResults[i]);
+    });
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to fetch validator data";
   }
@@ -59,12 +67,13 @@ export default async function ValidatorsPage() {
                     <th className="px-6 py-3 text-left">Stake (CLAW)</th>
                     <th className="px-6 py-3 text-left">Weight</th>
                     <th className="px-6 py-3 text-left">Agent Score</th>
+                    <th className="px-6 py-3 text-left">Delegated By</th>
                     <th className="px-6 py-3 text-left">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {validators.length === 0 ? (
-                    <tr><td colSpan={6} className="px-6 py-8 text-center text-muted">No validators found</td></tr>
+                    <tr><td colSpan={7} className="px-6 py-8 text-center text-muted">No validators found</td></tr>
                   ) : (
                     validators.map((v, i) => {
                       const weightShare = totalWeight > 0 ? ((v.weight / totalWeight) * 100).toFixed(1) : "0";
@@ -87,6 +96,19 @@ export default async function ValidatorsPage() {
                             </div>
                           </td>
                           <td className="px-6 py-3 text-muted">{v.agentScore}</td>
+                          <td className="px-6 py-3 font-mono text-xs">
+                            {(() => {
+                              const owner = delegations.get(v.address);
+                              if (owner) {
+                                return (
+                                  <a href={`/address/${owner}`} className="text-primary hover:underline">
+                                    {truncateAddress(owner)}
+                                  </a>
+                                );
+                              }
+                              return <span className="text-muted">Self-staked</span>;
+                            })()}
+                          </td>
                           <td className="px-6 py-3">
                             <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${isActive ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"}`}>
                               <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-green-400" : "bg-yellow-400"}`} />
