@@ -10,6 +10,7 @@ const ALLOWED_METHODS = new Set([
   "clw_getContractStorage", "clw_callContractView",
   "clw_getAgentScore",
   "clw_getStakeDelegation",
+  "clw_getValidatorDetail",
   "clw_estimateFee",
 ]);
 

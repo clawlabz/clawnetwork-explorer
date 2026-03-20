@@ -136,6 +136,30 @@ export async function getValidators(): Promise<unknown[]> {
   return rpc<unknown[]>("clw_getValidators");
 }
 
+export interface ValidatorDetail {
+  address: string;
+  stake: string;
+  weight: number;
+  agentScore: number;
+  commission_bps?: number;
+  delegatedBy?: string | null;
+  uptime?: {
+    produced_blocks: number;
+    expected_blocks: number;
+    signed_blocks: number;
+    uptime_pct: number;
+  };
+  jailed?: boolean;
+}
+
+export async function getValidatorDetail(address: string): Promise<ValidatorDetail | null> {
+  try {
+    return await rpc<ValidatorDetail>("clw_getValidatorDetail", [address]);
+  } catch {
+    return null;
+  }
+}
+
 export async function getStakeDelegation(address: string): Promise<string | null> {
   try {
     return await rpc<string | null>("clw_getStakeDelegation", [address]);
