@@ -132,6 +132,10 @@ export function parsePlatformActivityReportPayload(payloadBytes: number[]): Plat
   return { platform, entries };
 }
 
+export async function getValidators(): Promise<unknown[]> {
+  return rpcCall("clw_getValidators", []) as Promise<unknown[]>;
+}
+
 export async function getHealth(): Promise<Record<string, unknown>> {
   const network = getClientNetwork();
 

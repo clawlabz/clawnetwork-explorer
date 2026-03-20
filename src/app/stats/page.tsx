@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { getBlockNumber, getBlock, getHealth } from "@/lib/rpc";
+import { getBlockNumber, getBlock, getHealth, getValidators } from "@/lib/rpc";
 import { Layers, Clock, Activity, ArrowRightLeft, Users } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -98,9 +98,14 @@ export default function StatsPage() {
         setTps(recentTimeSpan > 0 ? Math.round((recentTxns / recentTimeSpan) * 100) / 100 : 0);
       }
 
-      // Count unique validators
-      const validators = new Set(blocks.map((b) => b.validator).filter(Boolean));
-      setValidatorCount(validators.size);
+      // Get active validator count from RPC
+      try {
+        const vals = await getValidators();
+        setValidatorCount(Array.isArray(vals) ? vals.length : 0);
+      } catch {
+        const validators = new Set(blocks.map((b) => b.validator).filter(Boolean));
+        setValidatorCount(validators.size);
+      }
     } catch (e) {
       console.error("Failed to fetch stats:", e instanceof Error ? e.message : e);
     } finally {

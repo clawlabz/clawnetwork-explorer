@@ -5,6 +5,7 @@ import {
   getHealth,
   getBlockNumber,
   getBlock,
+  getValidators,
   truncateAddress,
   toHexAddress,
   parseBlockTransaction,
@@ -111,8 +112,13 @@ export function Dashboard() {
         setTps(recentTimeSpan > 0 ? Math.round((recentTxns / recentTimeSpan) * 100) / 100 : 0);
       }
 
-      const validators = new Set(sorted.map((b) => toHexAddress(b.validator)).filter(Boolean));
-      setValidatorCount(validators.size);
+      try {
+        const vals = await getValidators();
+        setValidatorCount(Array.isArray(vals) ? vals.length : 0);
+      } catch {
+        const validators = new Set(sorted.map((b) => toHexAddress(b.validator)).filter(Boolean));
+        setValidatorCount(validators.size);
+      }
 
       setError(null);
     } catch (e) {
