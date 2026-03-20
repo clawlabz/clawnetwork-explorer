@@ -133,7 +133,7 @@ export function parsePlatformActivityReportPayload(payloadBytes: number[]): Plat
 }
 
 export async function getValidators(): Promise<unknown[]> {
-  return rpcCall("clw_getValidators", []) as Promise<unknown[]>;
+  return rpc<unknown[]>("clw_getValidators");
 }
 
 export async function getHealth(): Promise<Record<string, unknown>> {
