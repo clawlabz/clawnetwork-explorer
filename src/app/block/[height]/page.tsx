@@ -3,7 +3,7 @@ import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
 import { getBlock, truncateAddress, toHexAddress, parseBlockTransaction, formatCLAW, TX_TYPE_NAMES } from "@/lib/rpc";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Layers, ArrowRightLeft } from "lucide-react";
+import { ArrowLeft, Layers, ArrowRightLeft, Gift } from "lucide-react";
 
 type Props = { params: Promise<{ height: string }> };
 
@@ -55,6 +55,26 @@ export default async function BlockPage({ params }: Props) {
   const parsedTxns = txns.map((tx, txIdx) =>
     parseBlockTransaction(tx, timestamp, h, txIdx)
   );
+
+  // Parse block reward events
+  const rawEvents = (block.events as Array<Record<string, unknown>>) || [];
+  const rewardEvents = rawEvents
+    .filter((e) => e.RewardDistributed != null)
+    .map((e) => {
+      const data = e.RewardDistributed as Record<string, unknown>;
+      return {
+        recipient: toHexAddress(data.recipient),
+        amount: String(data.amount ?? "0"),
+        rewardType: String(data.reward_type ?? ""),
+      };
+    });
+
+  const REWARD_TYPE_LABELS: Record<string, string> = {
+    block_reward: "Block Reward",
+    proposer_fee: "Proposer Fee (50%)",
+    ecosystem_fee: "Ecosystem Fund (20%)",
+    fee_burn: "Fee Burn (30%)",
+  };
 
   return (
     <>
@@ -152,6 +172,58 @@ export default async function BlockPage({ params }: Props) {
                         {tx.amount ? (
                           <span className="text-green-400">{formatCLAW(tx.amount)} CLAW</span>
                         ) : "\u2014"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {rewardEvents.length > 0 && (
+          <div className="mt-8 rounded-xl border border-border bg-surface/50 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="font-semibold flex items-center gap-2">
+                <Gift className="h-4 w-4 text-primary" /> Rewards & Fees ({rewardEvents.length})
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left">Type</th>
+                    <th className="px-6 py-3 text-left">Recipient</th>
+                    <th className="px-6 py-3 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rewardEvents.map((evt, i) => (
+                    <tr key={i} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
+                      <td className="px-6 py-3">
+                        <span className={`rounded px-2 py-0.5 text-xs ${
+                          evt.rewardType === "fee_burn"
+                            ? "bg-red-500/10 text-red-400"
+                            : evt.rewardType === "block_reward"
+                            ? "bg-green-500/10 text-green-400"
+                            : "bg-primary/10 text-primary"
+                        }`}>
+                          {REWARD_TYPE_LABELS[evt.rewardType] ?? evt.rewardType}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 font-mono text-muted text-xs">
+                        {evt.rewardType === "fee_burn" ? (
+                          <span className="text-red-400/70">Burned</span>
+                        ) : (
+                          <a href={`/address/${evt.recipient}`} className="text-primary/70 hover:text-primary hover:underline">
+                            {truncateAddress(evt.recipient)}
+                          </a>
+                        )}
+                      </td>
+                      <td className="px-6 py-3 text-right text-xs">
+                        <span className={evt.rewardType === "fee_burn" ? "text-red-400" : "text-green-400"}>
+                          {evt.rewardType === "fee_burn" ? "-" : "+"}{formatCLAW(evt.amount)} CLAW
+                        </span>
                       </td>
                     </tr>
                   ))}
