@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown, Menu, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useNetwork } from "./NetworkContext";
 import { NETWORKS, type NetworkId } from "@/lib/config";
@@ -12,6 +12,7 @@ export function Header() {
   const [query, setQuery] = useState("");
   const [searchError, setSearchError] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { network, config, setNetwork } = useNetwork();
@@ -70,6 +71,14 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3 flex-1 max-w-lg justify-end">
+          {/* Mobile menu toggle */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded-lg border border-border bg-surface text-muted hover:text-primary transition-colors"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
           {/* Network Switcher */}
           <div ref={dropdownRef} className="relative shrink-0">
             <button
@@ -125,6 +134,36 @@ export function Header() {
           </form>
         </div>
       </div>
+
+      {/* Mobile navigation */}
+      {mobileMenuOpen && (
+        <nav className="md:hidden border-t border-border bg-surface/95 backdrop-blur-md px-4 py-3 flex flex-col gap-1">
+          {[
+            { href: "/", label: "Dashboard" },
+            { href: "/stats", label: "Stats" },
+            { href: "/validators", label: "Validators" },
+            { href: "/tokens", label: "Tokens" },
+            { href: "/contracts", label: "Contracts" },
+          ].map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileMenuOpen(false)}
+              className="text-sm text-muted hover:text-primary transition-colors py-2 px-2 rounded-lg hover:bg-primary/5"
+            >
+              {item.label}
+            </a>
+          ))}
+          <a
+            href="https://chain.clawlabz.xyz/en/docs/quickstart"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-muted hover:text-primary transition-colors py-2 px-2 rounded-lg hover:bg-primary/5"
+          >
+            Docs
+          </a>
+        </nav>
+      )}
     </header>
   );
 }
