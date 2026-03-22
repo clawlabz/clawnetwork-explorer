@@ -35,55 +35,55 @@ async function rpc<T>(method: string, params: unknown[] = []): Promise<T> {
 }
 
 export async function getBlockNumber(): Promise<number> {
-  return rpc<number>("clw_blockNumber");
+  return rpc<number>("claw_blockNumber");
 }
 
 export async function getBlock(height: number): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("clw_getBlockByNumber", [height]);
+  return rpc<Record<string, unknown> | null>("claw_getBlockByNumber", [height]);
 }
 
 export async function getBalance(address: string): Promise<string> {
-  return rpc<string>("clw_getBalance", [address]);
+  return rpc<string>("claw_getBalance", [address]);
 }
 
 export async function getNonce(address: string): Promise<number> {
-  return rpc<number>("clw_getNonce", [address]);
+  return rpc<number>("claw_getNonce", [address]);
 }
 
 export async function getAgent(address: string): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("clw_getAgent", [address]);
+  return rpc<Record<string, unknown> | null>("claw_getAgent", [address]);
 }
 
 export async function getReputation(address: string): Promise<unknown[]> {
-  return rpc<unknown[]>("clw_getReputation", [address]);
+  return rpc<unknown[]>("claw_getReputation", [address]);
 }
 
 export async function getServices(type?: string): Promise<unknown[]> {
-  return rpc<unknown[]>("clw_getServices", type ? [type] : []);
+  return rpc<unknown[]>("claw_getServices", type ? [type] : []);
 }
 
 export async function getTransactionByHash(hash: string): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("clw_getTransactionByHash", [hash]);
+  return rpc<Record<string, unknown> | null>("claw_getTransactionByHash", [hash]);
 }
 
 export async function getTransactionsByAddress(address: string, limit = 50, offset = 0): Promise<unknown[]> {
-  return rpc<unknown[]>("clw_getTransactionsByAddress", [address, limit, offset]);
+  return rpc<unknown[]>("claw_getTransactionsByAddress", [address, limit, offset]);
 }
 
 export async function getContractInfo(address: string): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("clw_getContractInfo", [address]);
+  return rpc<Record<string, unknown> | null>("claw_getContractInfo", [address]);
 }
 
 export async function getContractCode(address: string): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("clw_getContractCode", [address]);
+  return rpc<Record<string, unknown> | null>("claw_getContractCode", [address]);
 }
 
 export async function getContractStorage(address: string, key: string): Promise<string | null> {
-  return rpc<string | null>("clw_getContractStorage", [address, key]);
+  return rpc<string | null>("claw_getContractStorage", [address, key]);
 }
 
 export async function callContractView(address: string, method: string, args: string = ""): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("clw_callContractView", [address, method, args]);
+  return rpc<Record<string, unknown> | null>("claw_callContractView", [address, method, args]);
 }
 
 export interface AgentScore {
@@ -98,7 +98,7 @@ export interface AgentScore {
 
 export async function getAgentScore(address: string): Promise<AgentScore | null> {
   try {
-    return await rpc<AgentScore | null>("clw_getAgentScore", [address]);
+    return await rpc<AgentScore | null>("claw_getAgentScore", [address]);
   } catch {
     return null;
   }
@@ -133,7 +133,7 @@ export function parsePlatformActivityReportPayload(payloadBytes: number[]): Plat
 }
 
 export async function getValidators(): Promise<unknown[]> {
-  return rpc<unknown[]>("clw_getValidators");
+  return rpc<unknown[]>("claw_getValidators");
 }
 
 export interface ValidatorDetail {
@@ -154,7 +154,7 @@ export interface ValidatorDetail {
 
 export async function getValidatorDetail(address: string): Promise<ValidatorDetail | null> {
   try {
-    return await rpc<ValidatorDetail>("clw_getValidatorDetail", [address]);
+    return await rpc<ValidatorDetail>("claw_getValidatorDetail", [address]);
   } catch {
     return null;
   }
@@ -162,7 +162,7 @@ export async function getValidatorDetail(address: string): Promise<ValidatorDeta
 
 export async function getStakeDelegation(address: string): Promise<string | null> {
   try {
-    return await rpc<string | null>("clw_getStakeDelegation", [address]);
+    return await rpc<string | null>("claw_getStakeDelegation", [address]);
   } catch {
     return null;
   }
@@ -194,8 +194,6 @@ export function formatCLAW(baseUnits: string): string {
   }
 }
 
-/** @deprecated Use formatCLAW instead */
-export const formatCLW = formatCLAW;
 
 export function truncateAddress(addr: string, chars = 6): string {
   if (addr.length <= chars * 2 + 2) return addr;

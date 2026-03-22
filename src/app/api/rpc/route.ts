@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRpcUrl, type NetworkId } from "@/lib/config";
 
 const ALLOWED_METHODS = new Set([
-  "clw_blockNumber", "clw_getBlockByNumber", "clw_getBalance",
-  "clw_getNonce", "clw_getAgent", "clw_getReputation",
-  "clw_getServices", "clw_getTransactionByHash", "clw_getTransactionsByAddress",
-  "clw_listTokens", "clw_getValidators",
-  "clw_getContractInfo", "clw_getContractCode",
-  "clw_getContractStorage", "clw_callContractView",
-  "clw_getAgentScore",
-  "clw_getStakeDelegation",
-  "clw_getValidatorDetail",
-  "clw_estimateFee",
+  "claw_blockNumber", "claw_getBlockByNumber", "claw_getBalance",
+  "claw_getNonce", "claw_getAgent", "claw_getReputation",
+  "claw_getServices", "claw_getTransactionByHash", "claw_getTransactionsByAddress",
+  "claw_listTokens", "claw_getValidators",
+  "claw_getContractInfo", "claw_getContractCode",
+  "claw_getContractStorage", "claw_callContractView",
+  "claw_getAgentScore",
+  "claw_getStakeDelegation",
+  "claw_getValidatorDetail",
+  "claw_estimateFee",
 ]);
 
 function parseNetwork(req: NextRequest): NetworkId {
