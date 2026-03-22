@@ -17,7 +17,7 @@ const ALLOWED_METHODS = new Set([
 function parseNetwork(req: NextRequest): NetworkId {
   const param = req.nextUrl.searchParams.get("network");
   if (param === "mainnet" || param === "testnet") return param;
-  return "testnet";
+  return "mainnet";
 }
 
 export async function POST(req: NextRequest) {
