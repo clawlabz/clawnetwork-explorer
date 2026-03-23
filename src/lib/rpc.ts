@@ -160,6 +160,30 @@ export async function getValidatorDetail(address: string): Promise<ValidatorDeta
   }
 }
 
+export async function getMinerInfo(address: string, network?: NetworkId): Promise<Record<string, unknown> | null> {
+  try {
+    return await rpc<Record<string, unknown> | null>("claw_getMinerInfo", [address]);
+  } catch {
+    return null;
+  }
+}
+
+export async function getMiners(activeOnly = true, limit = 100, network?: NetworkId): Promise<unknown[]> {
+  try {
+    return await rpc<unknown[]>("claw_getMiners", [activeOnly, limit]);
+  } catch {
+    return [];
+  }
+}
+
+export async function getMiningStats(network?: NetworkId): Promise<Record<string, unknown> | null> {
+  try {
+    return await rpc<Record<string, unknown> | null>("claw_getMiningStats", []);
+  } catch {
+    return null;
+  }
+}
+
 export async function getStakeDelegation(address: string): Promise<string | null> {
   try {
     return await rpc<string | null>("claw_getStakeDelegation", [address]);
@@ -235,6 +259,8 @@ export const TX_TYPE_NAMES: Record<number, string> = {
   9: "ContractCall",
   10: "ContractTransfer",
   11: "PlatformActivityReport",
+  15: "MinerRegister",
+  16: "MinerHeartbeat",
 };
 
 const TX_TYPE_STRING_TO_NUM: Record<string, number> = {
@@ -250,6 +276,8 @@ const TX_TYPE_STRING_TO_NUM: Record<string, number> = {
   ContractCall: 9,
   ContractTransfer: 10,
   PlatformActivityReport: 11,
+  MinerRegister: 15,
+  MinerHeartbeat: 16,
 };
 
 export function parseBlockTransaction(

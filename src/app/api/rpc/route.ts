@@ -12,6 +12,9 @@ const ALLOWED_METHODS = new Set([
   "claw_getStakeDelegation",
   "claw_getValidatorDetail",
   "claw_estimateFee",
+  "claw_getMinerInfo",
+  "claw_getMiners",
+  "claw_getMiningStats",
 ]);
 
 function parseNetwork(req: NextRequest): NetworkId {
