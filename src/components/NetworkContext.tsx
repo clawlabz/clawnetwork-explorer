@@ -20,12 +20,17 @@ const STORAGE_KEY = "claw-explorer-network";
 export function NetworkProvider({ children }: { children: ReactNode }) {
   const [network, setNetworkState] = useState<NetworkId>(DEFAULT_NETWORK);
 
-  // Read from localStorage on mount
+  // Read from localStorage on mount + listen for external changes (e.g., NetworkSync)
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "mainnet" || stored === "testnet") {
-      setNetworkState(stored);
-    }
+    const syncFromStorage = () => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === "mainnet" || stored === "testnet") {
+        setNetworkState(stored);
+      }
+    };
+    syncFromStorage();
+    window.addEventListener("storage", syncFromStorage);
+    return () => window.removeEventListener("storage", syncFromStorage);
   }, []);
 
   const setNetwork = useCallback((id: NetworkId) => {

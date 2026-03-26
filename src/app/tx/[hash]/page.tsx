@@ -1,6 +1,7 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
+import { NetworkSync } from "@/components/NetworkSync";
 import { getTransactionByHash, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, parsePlatformActivityReportPayload, type PlatformActivityReportPayload } from "@/lib/rpc";
 import { getRpcUrl, DEFAULT_NETWORK, type NetworkId } from "@/lib/config";
 import { notFound } from "next/navigation";
@@ -101,7 +102,8 @@ export default async function TransactionPage({ params, searchParams }: Props) {
   }
 
   if (to) {
-    rows.push({ label: "To", value: to, link: `/address/${to}`, copy: true });
+    const isStake = rawTxType === 8; // StakeDeposit
+    rows.push({ label: isStake ? "Validator" : "To", value: to, link: `/address/${to}`, copy: true });
   }
 
   if (amount != null) {
@@ -121,6 +123,7 @@ export default async function TransactionPage({ params, searchParams }: Props) {
 
   return (
     <>
+      <NetworkSync network={network} />
       <Header />
       <main className="mx-auto max-w-7xl px-4 py-8">
         <a href="/" className="inline-flex items-center gap-1 text-sm text-muted hover:text-primary mb-6 transition-colors">
