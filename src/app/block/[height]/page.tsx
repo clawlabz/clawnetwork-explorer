@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getBlock, truncateAddress, toHexAddress, parseBlockTransaction, formatCLAW, TX_TYPE_NAMES } from "@/lib/rpc";
+import { getBlock, truncateAddress, toHexAddress, parseBlockTransaction, formatCLAW, TX_TYPE_NAMES, getServerNetwork } from "@/lib/rpc";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Layers, ArrowRightLeft, Gift } from "lucide-react";
 
@@ -16,11 +16,12 @@ export default async function BlockPage({ params }: Props) {
   const { height } = await params;
   const h = parseInt(height, 10);
   if (isNaN(h)) notFound();
+  const network = await getServerNetwork();
 
   let block: Record<string, unknown> | null = null;
   let fetchError: string | null = null;
   try {
-    block = await getBlock(h);
+    block = await getBlock(h, network);
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to connect to node";
   }

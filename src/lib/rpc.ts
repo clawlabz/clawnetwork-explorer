@@ -2,6 +2,8 @@ import { getRpcUrl, DEFAULT_NETWORK, type NetworkId } from "./config";
 
 const isServer = typeof window === "undefined";
 
+const COOKIE_NAME = "claw-network";
+
 /** Read network from localStorage (client-side only) */
 function getClientNetwork(): NetworkId {
   if (isServer) return DEFAULT_NETWORK;
@@ -12,14 +14,29 @@ function getClientNetwork(): NetworkId {
   return DEFAULT_NETWORK;
 }
 
-async function rpc<T>(method: string, params: unknown[] = []): Promise<T> {
-  const network = getClientNetwork();
+/**
+ * Read the selected network from the cookie on the server side.
+ * Must be called from a Server Component or Route Handler context.
+ */
+export async function getServerNetwork(): Promise<NetworkId> {
+  if (!isServer) return getClientNetwork();
+  try {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const value = cookieStore.get(COOKIE_NAME)?.value;
+    if (value === "mainnet" || value === "testnet") return value;
+  } catch { /* ignore - not in a request context */ }
+  return DEFAULT_NETWORK;
+}
+
+async function rpc<T>(method: string, params: unknown[] = [], network?: NetworkId): Promise<T> {
+  const resolvedNetwork = network ?? getClientNetwork();
   let url: string;
 
   if (isServer) {
-    url = getRpcUrl(network);
+    url = getRpcUrl(resolvedNetwork);
   } else {
-    url = `/api/rpc?network=${network}`;
+    url = `/api/rpc?network=${resolvedNetwork}`;
   }
 
   const res = await fetch(url, {
@@ -34,71 +51,71 @@ async function rpc<T>(method: string, params: unknown[] = []): Promise<T> {
   return json.result as T;
 }
 
-export async function getBlockNumber(): Promise<number> {
-  return rpc<number>("claw_blockNumber");
+export async function getBlockNumber(network?: NetworkId): Promise<number> {
+  return rpc<number>("claw_blockNumber", [], network);
 }
 
-export async function getBlock(height: number): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("claw_getBlockByNumber", [height]);
+export async function getBlock(height: number, network?: NetworkId): Promise<Record<string, unknown> | null> {
+  return rpc<Record<string, unknown> | null>("claw_getBlockByNumber", [height], network);
 }
 
-export async function getBalance(address: string): Promise<string> {
-  return rpc<string>("claw_getBalance", [address]);
+export async function getBalance(address: string, network?: NetworkId): Promise<string> {
+  return rpc<string>("claw_getBalance", [address], network);
 }
 
-export async function getNonce(address: string): Promise<number> {
-  return rpc<number>("claw_getNonce", [address]);
+export async function getNonce(address: string, network?: NetworkId): Promise<number> {
+  return rpc<number>("claw_getNonce", [address], network);
 }
 
-export async function getAgent(address: string): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("claw_getAgent", [address]);
+export async function getAgent(address: string, network?: NetworkId): Promise<Record<string, unknown> | null> {
+  return rpc<Record<string, unknown> | null>("claw_getAgent", [address], network);
 }
 
-export async function getReputation(address: string): Promise<unknown[]> {
-  return rpc<unknown[]>("claw_getReputation", [address]);
+export async function getReputation(address: string, network?: NetworkId): Promise<unknown[]> {
+  return rpc<unknown[]>("claw_getReputation", [address], network);
 }
 
-export async function getServices(type?: string): Promise<unknown[]> {
-  return rpc<unknown[]>("claw_getServices", type ? [type] : []);
+export async function getServices(type?: string, network?: NetworkId): Promise<unknown[]> {
+  return rpc<unknown[]>("claw_getServices", type ? [type] : [], network);
 }
 
-export async function getTransactionByHash(hash: string): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("claw_getTransactionByHash", [hash]);
+export async function getTransactionByHash(hash: string, network?: NetworkId): Promise<Record<string, unknown> | null> {
+  return rpc<Record<string, unknown> | null>("claw_getTransactionByHash", [hash], network);
 }
 
-export async function getTransactionsByAddress(address: string, limit = 50, offset = 0): Promise<unknown[]> {
-  return rpc<unknown[]>("claw_getTransactionsByAddress", [address, limit, offset]);
+export async function getTransactionsByAddress(address: string, limit = 50, offset = 0, network?: NetworkId): Promise<unknown[]> {
+  return rpc<unknown[]>("claw_getTransactionsByAddress", [address, limit, offset], network);
 }
 
-export async function getContractInfo(address: string): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("claw_getContractInfo", [address]);
+export async function getContractInfo(address: string, network?: NetworkId): Promise<Record<string, unknown> | null> {
+  return rpc<Record<string, unknown> | null>("claw_getContractInfo", [address], network);
 }
 
-export async function getContractCode(address: string): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("claw_getContractCode", [address]);
+export async function getContractCode(address: string, network?: NetworkId): Promise<Record<string, unknown> | null> {
+  return rpc<Record<string, unknown> | null>("claw_getContractCode", [address], network);
 }
 
-export async function getContractStorage(address: string, key: string): Promise<string | null> {
-  return rpc<string | null>("claw_getContractStorage", [address, key]);
+export async function getContractStorage(address: string, key: string, network?: NetworkId): Promise<string | null> {
+  return rpc<string | null>("claw_getContractStorage", [address, key], network);
 }
 
-export async function callContractView(address: string, method: string, args: string = ""): Promise<Record<string, unknown> | null> {
-  return rpc<Record<string, unknown> | null>("claw_callContractView", [address, method, args]);
+export async function callContractView(address: string, method: string, args: string = "", network?: NetworkId): Promise<Record<string, unknown> | null> {
+  return rpc<Record<string, unknown> | null>("claw_callContractView", [address, method, args], network);
 }
 
 export interface AgentScore {
-  total_score: number;
-  activity_score: number;
-  uptime_score: number;
-  block_production_score: number;
-  economic_score: number;
-  platform_score: number;
+  total: number;
+  activity: number;
+  uptime: number;
+  block_production: number;
+  economic: number;
+  platform: number;
   decay_factor: number;
 }
 
-export async function getAgentScore(address: string): Promise<AgentScore | null> {
+export async function getAgentScore(address: string, network?: NetworkId): Promise<AgentScore | null> {
   try {
-    return await rpc<AgentScore | null>("claw_getAgentScore", [address]);
+    return await rpc<AgentScore | null>("claw_getAgentScore", [address], network);
   } catch {
     return null;
   }
@@ -132,8 +149,8 @@ export function parsePlatformActivityReportPayload(payloadBytes: number[]): Plat
   return { platform, entries };
 }
 
-export async function getValidators(): Promise<unknown[]> {
-  return rpc<unknown[]>("claw_getValidators");
+export async function getValidators(network?: NetworkId): Promise<unknown[]> {
+  return rpc<unknown[]>("claw_getValidators", [], network);
 }
 
 export interface ValidatorDetail {
@@ -152,9 +169,9 @@ export interface ValidatorDetail {
   jailed?: boolean;
 }
 
-export async function getValidatorDetail(address: string): Promise<ValidatorDetail | null> {
+export async function getValidatorDetail(address: string, network?: NetworkId): Promise<ValidatorDetail | null> {
   try {
-    return await rpc<ValidatorDetail>("claw_getValidatorDetail", [address]);
+    return await rpc<ValidatorDetail>("claw_getValidatorDetail", [address], network);
   } catch {
     return null;
   }
@@ -162,7 +179,7 @@ export async function getValidatorDetail(address: string): Promise<ValidatorDeta
 
 export async function getMinerInfo(address: string, network?: NetworkId): Promise<Record<string, unknown> | null> {
   try {
-    return await rpc<Record<string, unknown> | null>("claw_getMinerInfo", [address]);
+    return await rpc<Record<string, unknown> | null>("claw_getMinerInfo", [address], network);
   } catch {
     return null;
   }
@@ -170,7 +187,7 @@ export async function getMinerInfo(address: string, network?: NetworkId): Promis
 
 export async function getMiners(activeOnly = true, limit = 100, network?: NetworkId): Promise<unknown[]> {
   try {
-    return await rpc<unknown[]>("claw_getMiners", [activeOnly, limit]);
+    return await rpc<unknown[]>("claw_getMiners", [activeOnly, limit], network);
   } catch {
     return [];
   }
@@ -178,30 +195,30 @@ export async function getMiners(activeOnly = true, limit = 100, network?: Networ
 
 export async function getMiningStats(network?: NetworkId): Promise<Record<string, unknown> | null> {
   try {
-    return await rpc<Record<string, unknown> | null>("claw_getMiningStats", []);
+    return await rpc<Record<string, unknown> | null>("claw_getMiningStats", [], network);
   } catch {
     return null;
   }
 }
 
-export async function getStakeDelegation(address: string): Promise<string | null> {
+export async function getStakeDelegation(address: string, network?: NetworkId): Promise<string | null> {
   try {
-    return await rpc<string | null>("claw_getStakeDelegation", [address]);
+    return await rpc<string | null>("claw_getStakeDelegation", [address], network);
   } catch {
     return null;
   }
 }
 
-export async function getHealth(): Promise<Record<string, unknown>> {
-  const network = getClientNetwork();
+export async function getHealth(network?: NetworkId): Promise<Record<string, unknown>> {
+  const resolvedNetwork = network ?? getClientNetwork();
 
   if (isServer) {
-    const rpcUrl = getRpcUrl(network);
+    const rpcUrl = getRpcUrl(resolvedNetwork);
     const res = await fetch(`${rpcUrl}/health`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
     return res.json();
   }
 
-  const res = await fetch(`/api/health?network=${network}`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+  const res = await fetch(`/api/health?network=${resolvedNetwork}`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
   return res.json();
 }
 
@@ -251,16 +268,21 @@ export const TX_TYPE_NAMES: Record<number, string> = {
   1: "TokenTransfer",
   2: "TokenCreate",
   3: "TokenMintTransfer",
-  4: "ReputationAttest (Deprecated)",
+  4: "ReputationAttest",
   5: "ServiceRegister",
-  6: "StakeDeposit",
-  7: "StakeWithdraw",
-  8: "ContractDeploy",
-  9: "ContractCall",
-  10: "ContractTransfer",
+  6: "ContractDeploy",
+  7: "ContractCall",
+  8: "StakeDeposit",
+  9: "StakeWithdraw",
+  10: "StakeClaim",
   11: "PlatformActivityReport",
+  12: "TokenApprove",
+  13: "TokenBurn",
+  14: "ChangeDelegation",
   15: "MinerRegister",
   16: "MinerHeartbeat",
+  17: "ContractUpgradeAnnounce",
+  18: "ContractUpgradeExecute",
 };
 
 const TX_TYPE_STRING_TO_NUM: Record<string, number> = {
@@ -270,14 +292,19 @@ const TX_TYPE_STRING_TO_NUM: Record<string, number> = {
   TokenMintTransfer: 3,
   ReputationAttest: 4,
   ServiceRegister: 5,
-  StakeDeposit: 6,
-  StakeWithdraw: 7,
-  ContractDeploy: 8,
-  ContractCall: 9,
-  ContractTransfer: 10,
+  ContractDeploy: 6,
+  ContractCall: 7,
+  StakeDeposit: 8,
+  StakeWithdraw: 9,
+  StakeClaim: 10,
   PlatformActivityReport: 11,
+  TokenApprove: 12,
+  TokenBurn: 13,
+  ChangeDelegation: 14,
   MinerRegister: 15,
   MinerHeartbeat: 16,
+  ContractUpgradeAnnounce: 17,
+  ContractUpgradeExecute: 18,
 };
 
 export function parseBlockTransaction(

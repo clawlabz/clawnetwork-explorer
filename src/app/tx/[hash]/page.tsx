@@ -2,14 +2,13 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
 import { NetworkSync } from "@/components/NetworkSync";
-import { getTransactionByHash, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, parsePlatformActivityReportPayload, type PlatformActivityReportPayload } from "@/lib/rpc";
-import { getRpcUrl, DEFAULT_NETWORK, type NetworkId } from "@/lib/config";
+import { getTransactionByHash, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, parsePlatformActivityReportPayload, getServerNetwork, type PlatformActivityReportPayload } from "@/lib/rpc";
+import { getRpcUrl, type NetworkId } from "@/lib/config";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRightLeft, FileText } from "lucide-react";
 
 type Props = {
   params: Promise<{ hash: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export async function generateMetadata({ params }: Props) {
@@ -32,11 +31,9 @@ async function fetchTxByHash(hash: string, network: NetworkId): Promise<Record<s
   return json.result ?? null;
 }
 
-export default async function TransactionPage({ params, searchParams }: Props) {
+export default async function TransactionPage({ params }: Props) {
   const { hash } = await params;
-  const sp = await searchParams;
-  const networkParam = (typeof sp.network === "string" ? sp.network : "") as string;
-  const network: NetworkId = networkParam === "testnet" ? "testnet" : networkParam === "mainnet" ? "mainnet" : DEFAULT_NETWORK;
+  const network = await getServerNetwork();
 
   let tx: Record<string, unknown> | null = null;
   let fetchError: string | null = null;

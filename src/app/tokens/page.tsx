@@ -1,12 +1,16 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { getBlockNumber, getBlock, toHexAddress, truncateAddress, formatCLAW, parseTokenCreatePayload } from "@/lib/rpc";
+import { getBlockNumber, getBlock, toHexAddress, truncateAddress, formatCLAW, parseTokenCreatePayload, getServerNetwork } from "@/lib/rpc";
+import { type NetworkId } from "@/lib/config";
 import { Coins, ArrowLeft } from "lucide-react";
 
 export const metadata = { title: "Tokens" };
 
 interface TokenInfo {
-  tokenId: string;
+  /** TX hash of the TokenCreate transaction. Used as a routing key until a dedicated
+   *  claw_getTokenInfo(tokenId) RPC is available. The actual on-chain token ID is
+   *  blake3(tx_bytes), which differs from the tx hash. */
+  creationTxHash: string;
   name: string;
   symbol: string;
   decimals: number;
@@ -40,15 +44,15 @@ async function fetchInBatches<T>(fns: (() => Promise<T>)[], batchSize = 20): Pro
 }
 
 /** Scan recent blocks for TokenCreate (type 2) transactions to build token list */
-async function getTokensFromBlocks(): Promise<TokenInfo[]> {
-  const height = await getBlockNumber();
+async function getTokensFromBlocks(network?: NetworkId): Promise<TokenInfo[]> {
+  const height = await getBlockNumber(network);
   const count = Math.min(height, 500);
   const start = Math.max(0, height - count + 1);
 
   const blockFns: (() => Promise<Record<string, unknown> | null>)[] = [];
   for (let i = height; i >= start; i--) {
     const h = i;
-    blockFns.push(() => getBlock(h));
+    blockFns.push(() => getBlock(h, network));
   }
 
   const blocks = (await fetchInBatches(blockFns, 20)).filter(Boolean) as Record<string, unknown>[];
@@ -72,7 +76,7 @@ async function getTokensFromBlocks(): Promise<TokenInfo[]> {
             const decoded = parseTokenCreatePayload(payload);
             const hash = toHexAddress(tx.hash);
             tokens.push({
-              tokenId: hash || `${blockHeight}:token`,
+              creationTxHash: hash || `${blockHeight}:token`,
               name: decoded.name,
               symbol: decoded.symbol,
               decimals: decoded.decimals,
@@ -92,11 +96,13 @@ async function getTokensFromBlocks(): Promise<TokenInfo[]> {
 }
 
 export default async function TokensPage() {
+  const network = await getServerNetwork();
+
   let tokens: TokenInfo[] = [];
   let fetchError: string | null = null;
 
   try {
-    tokens = await getTokensFromBlocks();
+    tokens = await getTokensFromBlocks(network);
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to fetch token data";
   }
@@ -175,10 +181,10 @@ export default async function TokensPage() {
                 </thead>
                 <tbody>
                   {tokens.map((token, i) => (
-                    <tr key={token.tokenId} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
+                    <tr key={token.creationTxHash} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
                       <td className="px-6 py-3 text-muted">{i + 1}</td>
                       <td className="px-6 py-3 font-semibold">
-                        <a href={`/token/${token.tokenId}`} className="text-primary hover:underline">
+                        <a href={`/token/${token.creationTxHash}`} className="text-primary hover:underline">
                           {token.name}
                         </a>
                       </td>

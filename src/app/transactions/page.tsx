@@ -7,20 +7,22 @@ import {
   formatCLAW,
   truncateAddress,
   TX_TYPE_NAMES,
+  getServerNetwork,
   type ParsedTx,
 } from "@/lib/rpc";
+import { type NetworkId } from "@/lib/config";
 import { ArrowRightLeft, ArrowLeft } from "lucide-react";
 
 export const metadata = { title: "Transactions" };
 
-async function getRecentTransactions(): Promise<ParsedTx[]> {
-  const height = await getBlockNumber();
+async function getRecentTransactions(network?: NetworkId): Promise<ParsedTx[]> {
+  const height = await getBlockNumber(network);
   const count = Math.min(height, 20);
   const start = Math.max(0, height - count + 1);
 
   const blockPromises = [];
   for (let i = height; i >= start; i--) {
-    blockPromises.push(getBlock(i));
+    blockPromises.push(getBlock(i, network));
   }
 
   const blocks = (await Promise.all(blockPromises)).filter(Boolean) as Record<string, unknown>[];
@@ -47,11 +49,13 @@ function formatTimeAgo(ts: number): string {
 }
 
 export default async function TransactionsPage() {
+  const network = await getServerNetwork();
+
   let transactions: ParsedTx[] = [];
   let fetchError: string | null = null;
 
   try {
-    transactions = await getRecentTransactions();
+    transactions = await getRecentTransactions(network);
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to fetch transactions";
   }

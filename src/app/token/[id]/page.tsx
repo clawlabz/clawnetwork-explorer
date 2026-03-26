@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getTransactionByHash, parseTokenCreatePayload, formatCLAW, truncateAddress, toHexAddress } from "@/lib/rpc";
+import { getTransactionByHash, parseTokenCreatePayload, formatCLAW, truncateAddress, toHexAddress, getServerNetwork } from "@/lib/rpc";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Coins } from "lucide-react";
 
@@ -29,11 +29,12 @@ function formatTokenSupply(baseUnits: string, decimals: number): string {
 
 export default async function TokenDetailPage({ params }: Props) {
   const { id } = await params;
+  const network = await getServerNetwork();
 
   let tx: Record<string, unknown> | null = null;
   let fetchError: string | null = null;
   try {
-    tx = await getTransactionByHash(id);
+    tx = await getTransactionByHash(id, network);
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to connect to node";
   }
@@ -87,7 +88,9 @@ export default async function TokenDetailPage({ params }: Props) {
     });
   }
 
-  rows.push({ label: "Token ID", value: txHash, copy: true });
+  // NOTE: This is the creation tx hash, not the actual on-chain token ID (which is blake3(tx_bytes)).
+  // A dedicated claw_getTokenInfo(tokenId) RPC is needed for proper token ID lookup.
+  rows.push({ label: "Creation TX", value: txHash, copy: true, link: `/tx/${txHash}` });
   rows.push({
     label: "Creator",
     value: creator,
@@ -104,7 +107,7 @@ export default async function TokenDetailPage({ params }: Props) {
     value: timestamp ? new Date(timestamp * 1000).toLocaleString() : "—",
   });
 
-  rows.push({ label: "Transaction", value: txHash, link: `/tx/${txHash}`, copy: true });
+  // Transaction link omitted — "Creation TX" row above already links to the transaction
 
   const displayName = tokenInfo?.name ?? `Token ${truncateAddress(txHash, 8)}`;
   const displaySymbol = tokenInfo?.symbol ?? null;

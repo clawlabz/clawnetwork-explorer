@@ -5,6 +5,7 @@ import {
   getStakeDelegation,
   getValidatorDetail,
   getHealth,
+  getServerNetwork,
   formatCLAW,
   truncateAddress,
   type ValidatorDetail,
@@ -43,14 +44,15 @@ function formatCLAWCompact(baseUnits: string): string {
 }
 
 export default async function ValidatorsPage() {
+  const network = await getServerNetwork();
   let validators: EnrichedValidator[] = [];
   let fetchError: string | null = null;
   let epoch = 0;
 
   try {
     const [rawValidators, health] = await Promise.all([
-      getValidators() as Promise<ValidatorBase[]>,
-      getHealth().catch(() => ({} as Record<string, unknown>)),
+      getValidators(network) as Promise<ValidatorBase[]>,
+      getHealth(network).catch(() => ({} as Record<string, unknown>)),
     ]);
 
     epoch = (health?.epoch as number) || 0;
@@ -61,8 +63,8 @@ export default async function ValidatorsPage() {
     const enriched = await Promise.all(
       sorted.map(async (v): Promise<EnrichedValidator> => {
         const [detail, delegation] = await Promise.all([
-          getValidatorDetail(v.address),
-          getStakeDelegation(v.address),
+          getValidatorDetail(v.address, network),
+          getStakeDelegation(v.address, network),
         ]);
 
         return {

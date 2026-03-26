@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getBalance, getNonce, getAgent, getReputation, getTransactionsByAddress, getAgentScore, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, type AgentScore } from "@/lib/rpc";
+import { getBalance, getNonce, getAgent, getReputation, getTransactionsByAddress, getAgentScore, getServerNetwork, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, type AgentScore } from "@/lib/rpc";
 import { ArrowLeft, User, Coins, Shield, ArrowRightLeft, Star, Activity, Clock, Blocks, Wallet, Globe } from "lucide-react";
 
 const PAGE_SIZE = 20;
@@ -18,7 +18,9 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function AddressPage({ params, searchParams }: Props) {
   const { address } = await params;
-  const { page: pageParam } = await searchParams;
+  const sp = await searchParams;
+  const pageParam = sp.page;
+  const network = await getServerNetwork();
   const currentPage = Math.max(1, parseInt(pageParam || "1", 10) || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
 
@@ -31,12 +33,12 @@ export default async function AddressPage({ params, searchParams }: Props) {
 
   try {
     [balance, nonce, agent, reputation, transactions, agentScore] = await Promise.all([
-      getBalance(address),
-      getNonce(address),
-      getAgent(address),
-      getReputation(address),
-      getTransactionsByAddress(address, PAGE_SIZE + 1, offset) as Promise<Record<string, unknown>[]>,
-      getAgentScore(address),
+      getBalance(address, network),
+      getNonce(address, network),
+      getAgent(address, network),
+      getReputation(address, network),
+      getTransactionsByAddress(address, PAGE_SIZE + 1, offset, network) as Promise<Record<string, unknown>[]>,
+      getAgentScore(address, network),
     ]);
   } catch (e) {
     console.error("Failed to fetch address data:", e);
@@ -120,23 +122,23 @@ export default async function AddressPage({ params, searchParams }: Props) {
               {/* Total Score */}
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10">
-                  <span className="text-2xl font-bold text-primary">{agentScore.total_score.toLocaleString()}</span>
+                  <span className="text-2xl font-bold text-primary">{agentScore.total.toLocaleString()}</span>
                 </div>
                 <div>
                   <p className="text-sm text-muted">Total Score</p>
                   <p className="text-xs text-muted mt-0.5">
-                    Decay Factor: <span className="text-text font-semibold">{(agentScore.decay_factor * 100).toFixed(1)}%</span>
+                    Decay Factor: <span className="text-text font-semibold">{(agentScore.decay_factor / 100).toFixed(1)}%</span>
                   </p>
                 </div>
               </div>
 
               {/* Score Dimensions */}
               <div className="space-y-3">
-                <ScoreBar icon={Activity} label="Activity" score={agentScore.activity_score} max={10000} />
-                <ScoreBar icon={Clock} label="Uptime" score={agentScore.uptime_score} max={10000} />
-                <ScoreBar icon={Blocks} label="Block Production" score={agentScore.block_production_score} max={10000} />
-                <ScoreBar icon={Wallet} label="Economic" score={agentScore.economic_score} max={10000} />
-                <ScoreBar icon={Globe} label="Platform" score={agentScore.platform_score} max={10000} />
+                <ScoreBar icon={Activity} label="Activity" score={agentScore.activity} max={10000} />
+                <ScoreBar icon={Clock} label="Uptime" score={agentScore.uptime} max={10000} />
+                <ScoreBar icon={Blocks} label="Block Production" score={agentScore.block_production} max={10000} />
+                <ScoreBar icon={Wallet} label="Economic" score={agentScore.economic} max={10000} />
+                <ScoreBar icon={Globe} label="Platform" score={agentScore.platform} max={10000} />
               </div>
             </div>
           ) : (
@@ -189,10 +191,10 @@ export default async function AddressPage({ params, searchParams }: Props) {
                     const txHash = toHexAddress(tx.hash);
                     const fromAddr = toHexAddress(tx.from);
                     const toAddr = toHexAddress(tx.to);
-                    const txType = tx.tx_type as number | undefined;
+                    const txType = (tx.txType ?? tx.tx_type) as number | undefined;
                     const typeName = (tx.typeName as string) || (txType !== undefined ? TX_TYPE_NAMES[txType] : undefined) || `Type ${txType ?? "?"}`;
                     const amount = tx.amount as string | undefined;
-                    const blockHeight = tx.block_height as number | undefined;
+                    const blockHeight = (tx.blockHeight ?? tx.block_height) as number | undefined;
                     return (
                       <tr key={txHash || i} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
                         <td className="px-6 py-3 font-mono text-xs">
