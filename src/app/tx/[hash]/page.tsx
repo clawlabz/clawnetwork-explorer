@@ -2,23 +2,45 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
 import { getTransactionByHash, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, parsePlatformActivityReportPayload, type PlatformActivityReportPayload } from "@/lib/rpc";
+import { getRpcUrl, DEFAULT_NETWORK, type NetworkId } from "@/lib/config";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRightLeft, FileText } from "lucide-react";
 
-type Props = { params: Promise<{ hash: string }> };
+type Props = {
+  params: Promise<{ hash: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 export async function generateMetadata({ params }: Props) {
   const { hash } = await params;
   return { title: `TX ${hash.slice(0, 12)}...` };
 }
 
-export default async function TransactionPage({ params }: Props) {
+/** Server-side RPC call with explicit network */
+async function fetchTxByHash(hash: string, network: NetworkId): Promise<Record<string, unknown> | null> {
+  const rpcUrl = getRpcUrl(network);
+  const res = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "claw_getTransactionByHash", params: [hash] }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(5000),
+  });
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message);
+  return json.result ?? null;
+}
+
+export default async function TransactionPage({ params, searchParams }: Props) {
   const { hash } = await params;
+  const sp = await searchParams;
+  const networkParam = (typeof sp.network === "string" ? sp.network : "") as string;
+  const network: NetworkId = networkParam === "testnet" ? "testnet" : networkParam === "mainnet" ? "mainnet" : DEFAULT_NETWORK;
 
   let tx: Record<string, unknown> | null = null;
   let fetchError: string | null = null;
   try {
-    tx = await getTransactionByHash(hash);
+    tx = await fetchTxByHash(hash, network);
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to connect to node";
   }
