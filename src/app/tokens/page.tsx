@@ -1,15 +1,15 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { getBlockNumber, getBlock, toHexAddress, truncateAddress, formatCLAW, parseTokenCreatePayload, getServerNetwork } from "@/lib/rpc";
+import { getBlockNumber, getBlock, toHexAddress, truncateAddress, formatCLAW, parseTokenCreatePayload, getServerNetwork, computeTokenId } from "@/lib/rpc";
 import { type NetworkId } from "@/lib/config";
 import { Coins, ArrowLeft } from "lucide-react";
 
 export const metadata = { title: "Tokens" };
 
 interface TokenInfo {
-  /** TX hash of the TokenCreate transaction. Used as a routing key until a dedicated
-   *  claw_getTokenInfo(tokenId) RPC is available. The actual on-chain token ID is
-   *  blake3(tx_bytes), which differs from the tx hash. */
+  /** The real on-chain token ID, computed as blake3(sender + name + nonce).
+   *  Falls back to creation tx hash if the RPC lookup fails. */
+  tokenId: string;
   creationTxHash: string;
   name: string;
   symbol: string;
@@ -43,10 +43,28 @@ async function fetchInBatches<T>(fns: (() => Promise<T>)[], batchSize = 20): Pro
   return results;
 }
 
+/** Compute the real on-chain token ID: blake3(sender || name || nonce).
+ *  Falls back to creation tx hash if nonce is unavailable. */
+function resolveTokenId(
+  creationTxHash: string,
+  creator: string,
+  name: string,
+  nonce: number | undefined,
+): string {
+  if (nonce !== undefined && creator) {
+    try {
+      return computeTokenId(creator, name, nonce);
+    } catch {
+      // Hash computation failed — fall through
+    }
+  }
+  return creationTxHash;
+}
+
 /** Scan recent blocks for TokenCreate (type 2) transactions to build token list */
 async function getTokensFromBlocks(network?: NetworkId): Promise<TokenInfo[]> {
   const height = await getBlockNumber(network);
-  const count = Math.min(height, 500);
+  const count = Math.min(height + 1, 500); // +1 to include block 0
   const start = Math.max(0, height - count + 1);
 
   const blockFns: (() => Promise<Record<string, unknown> | null>)[] = [];
@@ -75,7 +93,10 @@ async function getTokensFromBlocks(network?: NetworkId): Promise<TokenInfo[]> {
           try {
             const decoded = parseTokenCreatePayload(payload);
             const hash = toHexAddress(tx.hash);
+            const nonce = tx.nonce as number | undefined;
+            const tokenId = resolveTokenId(hash, from, decoded.name, nonce);
             tokens.push({
+              tokenId,
               creationTxHash: hash || `${blockHeight}:token`,
               name: decoded.name,
               symbol: decoded.symbol,
@@ -181,10 +202,10 @@ export default async function TokensPage() {
                 </thead>
                 <tbody>
                   {tokens.map((token, i) => (
-                    <tr key={token.creationTxHash} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
+                    <tr key={token.tokenId} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
                       <td className="px-6 py-3 text-muted">{i + 1}</td>
                       <td className="px-6 py-3 font-semibold">
-                        <a href={`/token/${token.creationTxHash}`} className="text-primary hover:underline">
+                        <a href={`/token/${token.tokenId}`} className="text-primary hover:underline">
                           {token.name}
                         </a>
                       </td>

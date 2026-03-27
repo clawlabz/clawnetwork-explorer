@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getTransactionByHash, parseTokenCreatePayload, formatCLAW, truncateAddress, toHexAddress, getServerNetwork } from "@/lib/rpc";
+import { getTokenInfo, getTransactionByHash, parseTokenCreatePayload, truncateAddress, toHexAddress, getServerNetwork } from "@/lib/rpc";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Coins } from "lucide-react";
 
@@ -31,12 +31,25 @@ export default async function TokenDetailPage({ params }: Props) {
   const { id } = await params;
   const network = await getServerNetwork();
 
+  // Try claw_getTokenInfo first (id may be a real token ID or a creation tx hash)
+  let rpcTokenInfo: Record<string, unknown> | null = null;
   let tx: Record<string, unknown> | null = null;
   let fetchError: string | null = null;
+
   try {
-    tx = await getTransactionByHash(id, network);
-  } catch (e) {
-    fetchError = e instanceof Error ? e.message : "Failed to connect to node";
+    rpcTokenInfo = await getTokenInfo(id, network);
+  } catch {
+    // RPC may not support this method — fall through
+  }
+
+  // If RPC returned token info, use it directly
+  // Otherwise fall back to looking up by tx hash (legacy route)
+  if (!rpcTokenInfo) {
+    try {
+      tx = await getTransactionByHash(id, network);
+    } catch (e) {
+      fetchError = e instanceof Error ? e.message : "Failed to connect to node";
+    }
   }
 
   if (fetchError) {
@@ -57,26 +70,48 @@ export default async function TokenDetailPage({ params }: Props) {
     );
   }
 
-  if (!tx) notFound();
+  if (!rpcTokenInfo && !tx) notFound();
 
-  // Parse the borsh payload to get token info
-  const payload = tx.payload as number[] | undefined;
+  // Build token info from either the RPC response or the creation tx payload
   let tokenInfo: { name: string; symbol: string; decimals: number; initialSupply: string } | null = null;
-  if (payload && payload.length > 0) {
-    try {
-      tokenInfo = parseTokenCreatePayload(payload);
-    } catch {
-      // Payload is not a valid TokenCreate — show raw tx instead
-    }
-  }
+  let creator = "";
+  let blockHeight: number | null = null;
+  let timestamp = 0;
+  let txHash = "";
+  let tokenId = id;
 
-  const creator = toHexAddress(tx.from);
-  const blockHeight = (tx.block_height as number) ?? (tx.blockHeight as number) ?? null;
-  const timestamp = (tx.timestamp as number) ?? 0;
-  const txHash = toHexAddress(tx.hash) || id;
+  if (rpcTokenInfo) {
+    // Token data from claw_getTokenInfo RPC
+    const name = String(rpcTokenInfo.name ?? "");
+    const symbol = String(rpcTokenInfo.symbol ?? "");
+    const decimals = (rpcTokenInfo.decimals as number) ?? 0;
+    const totalSupply = String(rpcTokenInfo.totalSupply ?? rpcTokenInfo.total_supply ?? "0");
+    tokenInfo = { name, symbol, decimals, initialSupply: totalSupply };
+    creator = toHexAddress(rpcTokenInfo.creator ?? rpcTokenInfo.owner);
+    blockHeight = (rpcTokenInfo.blockHeight as number) ?? (rpcTokenInfo.block_height as number) ?? null;
+    timestamp = (rpcTokenInfo.timestamp as number) ?? 0;
+    txHash = toHexAddress(rpcTokenInfo.creationTxHash ?? rpcTokenInfo.creation_tx_hash) || "";
+    tokenId = String(rpcTokenInfo.tokenId ?? rpcTokenInfo.token_id ?? id);
+  } else if (tx) {
+    // Fallback: parse from the creation transaction payload
+    const payload = tx.payload as number[] | undefined;
+    if (payload && payload.length > 0) {
+      try {
+        tokenInfo = parseTokenCreatePayload(payload);
+      } catch {
+        // Payload is not a valid TokenCreate — show raw tx instead
+      }
+    }
+    creator = toHexAddress(tx.from);
+    blockHeight = (tx.blockHeight as number) ?? (tx.block_height as number) ?? null;
+    timestamp = (tx.timestamp as number) ?? 0;
+    txHash = toHexAddress(tx.hash) || id;
+  }
 
   // Build detail rows
   const rows: { label: string; value: string; link?: string; copy?: boolean; badge?: boolean }[] = [];
+
+  rows.push({ label: "Token ID", value: tokenId, copy: true });
 
   if (tokenInfo) {
     rows.push({ label: "Token Name", value: tokenInfo.name });
@@ -88,9 +123,9 @@ export default async function TokenDetailPage({ params }: Props) {
     });
   }
 
-  // NOTE: This is the creation tx hash, not the actual on-chain token ID (which is blake3(tx_bytes)).
-  // A dedicated claw_getTokenInfo(tokenId) RPC is needed for proper token ID lookup.
-  rows.push({ label: "Creation TX", value: txHash, copy: true, link: `/tx/${txHash}` });
+  if (txHash) {
+    rows.push({ label: "Creation TX", value: txHash, copy: true, link: `/tx/${txHash}` });
+  }
   rows.push({
     label: "Creator",
     value: creator,
@@ -107,9 +142,7 @@ export default async function TokenDetailPage({ params }: Props) {
     value: timestamp ? new Date(timestamp * 1000).toLocaleString() : "—",
   });
 
-  // Transaction link omitted — "Creation TX" row above already links to the transaction
-
-  const displayName = tokenInfo?.name ?? `Token ${truncateAddress(txHash, 8)}`;
+  const displayName = tokenInfo?.name ?? `Token ${truncateAddress(tokenId, 8)}`;
   const displaySymbol = tokenInfo?.symbol ?? null;
 
   return (

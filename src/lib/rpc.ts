@@ -1,3 +1,4 @@
+import { blake3 as blake3Hash } from "@noble/hashes/blake3.js";
 import { getRpcUrl, DEFAULT_NETWORK, type NetworkId } from "./config";
 
 const isServer = typeof window === "undefined";
@@ -85,6 +86,14 @@ export async function getTransactionByHash(hash: string, network?: NetworkId): P
 
 export async function getTransactionsByAddress(address: string, limit = 50, offset = 0, network?: NetworkId): Promise<unknown[]> {
   return rpc<unknown[]>("claw_getTransactionsByAddress", [address, limit, offset], network);
+}
+
+export async function getTokenInfo(tokenId: string, network?: NetworkId): Promise<Record<string, unknown> | null> {
+  try {
+    return await rpc<Record<string, unknown> | null>("claw_getTokenInfo", [tokenId], network);
+  } catch {
+    return null;
+  }
 }
 
 export async function getContractInfo(address: string, network?: NetworkId): Promise<Record<string, unknown> | null> {
@@ -395,4 +404,61 @@ export function parseTokenCreatePayload(payloadBytes: number[]): TokenCreatePayl
   const decimals = borshReadU8(r);
   const initialSupply = borshReadU128LE(r);
   return { name, symbol, decimals, initialSupply };
+}
+
+/**
+ * Compute the on-chain token ID: blake3(sender_bytes || name_utf8 || nonce_le_u64).
+ * Matches the Rust derivation in claw-node state/handlers.rs.
+ */
+export function computeTokenId(senderHex: string, name: string, nonce: number): string {
+  const sender = hexToBytes(senderHex);
+  const nameBytes = new TextEncoder().encode(name);
+  // nonce as u64 little-endian (8 bytes)
+  const nonceBuf = new Uint8Array(8);
+  const view = new DataView(nonceBuf.buffer);
+  view.setBigUint64(0, BigInt(nonce), true);
+
+  const input = new Uint8Array(sender.length + nameBytes.length + 8);
+  input.set(sender, 0);
+  input.set(nameBytes, sender.length);
+  input.set(nonceBuf, sender.length + nameBytes.length);
+
+  const digest = blake3Hash(input);
+  return bytesToHex(digest);
+}
+
+/** Convert hex string to Uint8Array */
+function hexToBytes(hex: string): Uint8Array {
+  const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
+  const bytes = new Uint8Array(clean.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+/** Convert Uint8Array to hex string */
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Transaction receipt from claw_getTransactionReceipt */
+export interface TransactionReceipt {
+  blockHeight: number;
+  transactionIndex: number;
+  success?: boolean;
+  fuelConsumed?: number;
+  fuelLimit?: number;
+  returnData?: string;
+  errorMessage?: string | null;
+  events?: { topic: string; data: string }[];
+  logs?: string[];
+}
+
+export async function getTransactionReceipt(hash: string, network?: NetworkId): Promise<TransactionReceipt | null> {
+  try {
+    return await rpc<TransactionReceipt | null>("claw_getTransactionReceipt", [hash], network);
+  } catch {
+    return null;
+  }
 }

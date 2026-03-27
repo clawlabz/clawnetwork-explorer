@@ -2,10 +2,10 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
 import { NetworkSync } from "@/components/NetworkSync";
-import { getTransactionByHash, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, parsePlatformActivityReportPayload, getServerNetwork, type PlatformActivityReportPayload } from "@/lib/rpc";
+import { formatCLAW, truncateAddress, toHexAddress, getServerNetwork, getTransactionReceipt, type TransactionReceipt } from "@/lib/rpc";
 import { getRpcUrl, type NetworkId } from "@/lib/config";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRightLeft, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft } from "lucide-react";
 
 type Props = {
   params: Promise<{ hash: string }>;
@@ -16,7 +16,8 @@ export async function generateMetadata({ params }: Props) {
   return { title: `TX ${hash.slice(0, 12)}...` };
 }
 
-/** Server-side RPC call with explicit network */
+/** Server-side RPC call with explicit network.
+ *  The RPC returns: hash, txType, typeName, from, to, amount, nonce, blockHeight, timestamp, fee */
 async function fetchTxByHash(hash: string, network: NetworkId): Promise<Record<string, unknown> | null> {
   const rpcUrl = getRpcUrl(network);
   const res = await fetch(rpcUrl, {
@@ -36,9 +37,15 @@ export default async function TransactionPage({ params }: Props) {
   const network = await getServerNetwork();
 
   let tx: Record<string, unknown> | null = null;
+  let receipt: TransactionReceipt | null = null;
   let fetchError: string | null = null;
   try {
-    tx = await fetchTxByHash(hash, network);
+    const [txResult, receiptResult] = await Promise.all([
+      fetchTxByHash(hash, network),
+      getTransactionReceipt(hash, network),
+    ]);
+    tx = txResult;
+    receipt = receiptResult;
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to connect to node";
   }
@@ -63,34 +70,32 @@ export default async function TransactionPage({ params }: Props) {
 
   if (!tx) notFound();
 
+  // Only use fields that claw_getTransactionByHash actually returns
   const txHash = toHexAddress(tx.hash) || String(tx.hash ?? hash);
-  const rawTxType = tx.tx_type as number | undefined;
-  const typeName = rawTxType !== undefined
-    ? (TX_TYPE_NAMES[rawTxType] ?? String(tx.type_name ?? tx.typeName ?? `Type ${rawTxType}`))
-    : String(tx.type_name ?? tx.typeName ?? tx.type ?? "Unknown");
+  const txType = (tx.txType as number | undefined) ?? (tx.tx_type as number | undefined);
+  const typeName = String(tx.typeName ?? tx.type_name ?? (txType !== undefined ? `Type ${txType}` : "Unknown"));
   const from = toHexAddress(tx.from);
   const to = toHexAddress(tx.to);
   const amount = tx.amount != null ? String(tx.amount) : null;
-  const fee = String(tx.fee ?? "0");
+  const fee = tx.fee != null ? String(tx.fee) : null;
   const nonce = tx.nonce as number | undefined;
-  const blockHeight = tx.block_height as number ?? tx.blockHeight as number ?? null;
-  const timestamp = tx.timestamp as number ?? 0;
-  const payload = tx.payload as number[] | undefined;
+  const blockHeight = (tx.blockHeight as number) ?? (tx.block_height as number) ?? null;
+  const timestamp = (tx.timestamp as number) ?? 0;
 
-  // Parse PlatformActivityReport payload
-  let activityReport: PlatformActivityReportPayload | null = null;
-  if (rawTxType === 11 && payload && payload.length > 0) {
-    try {
-      activityReport = parsePlatformActivityReportPayload(payload);
-    } catch {
-      // Payload parsing failed — ignore
-    }
+  // Determine status from receipt if available, otherwise from block inclusion
+  let status: string;
+  if (receipt && receipt.success !== undefined) {
+    status = receipt.success ? "Success" : "Failed";
+  } else if (blockHeight != null) {
+    status = "Confirmed";
+  } else {
+    status = "Pending";
   }
 
   const rows: { label: string; value: string; link?: string; copy?: boolean }[] = [
     { label: "TX Hash", value: txHash, copy: true },
     { label: "Type", value: typeName },
-    { label: "Status", value: "Success" },
+    { label: "Status", value: status },
     { label: "From", value: from, link: from ? `/address/${from}` : undefined, copy: !!from },
   ];
 
@@ -99,7 +104,7 @@ export default async function TransactionPage({ params }: Props) {
   }
 
   if (to) {
-    const isStake = rawTxType === 8; // StakeDeposit
+    const isStake = txType === 8; // StakeDeposit
     rows.push({ label: isStake ? "Validator" : "To", value: to, link: `/address/${to}`, copy: true });
   }
 
@@ -107,7 +112,9 @@ export default async function TransactionPage({ params }: Props) {
     rows.push({ label: "Amount", value: `${formatCLAW(amount)} CLAW` });
   }
 
-  rows.push({ label: "Fee", value: fee });
+  if (fee != null) {
+    rows.push({ label: "Fee", value: fee });
+  }
 
   if (blockHeight != null) {
     rows.push({ label: "Block Height", value: `${blockHeight}`, link: `/block/${blockHeight}` });
@@ -115,8 +122,35 @@ export default async function TransactionPage({ params }: Props) {
 
   rows.push({
     label: "Timestamp",
-    value: timestamp ? new Date(timestamp * 1000).toLocaleString() : "—",
+    value: timestamp ? new Date(timestamp * 1000).toLocaleString() : "---",
   });
+
+  // Receipt details
+  if (receipt) {
+    if (receipt.fuelConsumed !== undefined) {
+      const fuelStr = receipt.fuelLimit
+        ? `${receipt.fuelConsumed.toLocaleString()} / ${receipt.fuelLimit.toLocaleString()}`
+        : receipt.fuelConsumed.toLocaleString();
+      rows.push({ label: "Fuel Used", value: fuelStr });
+    }
+    if (receipt.errorMessage) {
+      rows.push({ label: "Error", value: receipt.errorMessage });
+    }
+    if (receipt.returnData && receipt.returnData !== "" && receipt.returnData !== "0".repeat(receipt.returnData.length)) {
+      rows.push({ label: "Return Data", value: receipt.returnData });
+    }
+  }
+
+  // Collect log/event strings for display below the table
+  const logEntries: string[] = [];
+  if (receipt?.logs && receipt.logs.length > 0) {
+    logEntries.push(...receipt.logs);
+  }
+  if (receipt?.events && receipt.events.length > 0) {
+    for (const ev of receipt.events) {
+      logEntries.push(`[${ev.topic}] ${ev.data}`);
+    }
+  }
 
   return (
     <>
@@ -142,7 +176,18 @@ export default async function TransactionPage({ params }: Props) {
             <div key={row.label} className="flex flex-col gap-1 px-6 py-4 md:flex-row md:items-center md:gap-8">
               <span className="w-32 shrink-0 text-xs text-muted uppercase tracking-wider">{row.label}</span>
               <div className="flex items-center gap-2 min-w-0">
-                {row.link ? (
+                {row.label === "Status" ? (
+                  <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold ${
+                    row.value === "Success" ? "bg-green-500/10 text-green-400" :
+                    row.value === "Failed" ? "bg-red-500/10 text-red-400" :
+                    row.value === "Confirmed" ? "bg-blue-500/10 text-blue-400" :
+                    "bg-yellow-500/10 text-yellow-400"
+                  }`}>
+                    {row.value}
+                  </span>
+                ) : row.label === "Error" ? (
+                  <span className="font-mono text-sm text-red-400 break-all">{row.value}</span>
+                ) : row.link ? (
                   <a href={row.link} className="font-mono text-sm text-primary hover:underline truncate">
                     {row.label === "Block Height" ? row.value : truncateAddress(row.value, 12)}
                   </a>
@@ -155,52 +200,13 @@ export default async function TransactionPage({ params }: Props) {
           ))}
         </div>
 
-        {/* PlatformActivityReport Details */}
-        {activityReport && (
-          <div className="mt-6 rounded-xl border border-border bg-surface/50 overflow-hidden">
-            <div className="flex items-center gap-2 px-6 py-4 border-b border-border">
-              <FileText className="h-4 w-4 text-primary" />
-              <h2 className="font-semibold">Platform Activity Report</h2>
-              <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary ml-2">
-                {activityReport.platform}
-              </span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
-                    <th className="px-6 py-3 text-left">Agent Address</th>
-                    <th className="px-6 py-3 text-left">Action Type</th>
-                    <th className="px-6 py-3 text-right">Action Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activityReport.entries.length === 0 ? (
-                    <tr><td colSpan={3} className="px-6 py-6 text-center text-muted">No activity entries</td></tr>
-                  ) : (
-                    activityReport.entries.map((entry, i) => (
-                      <tr key={i} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
-                        <td className="px-6 py-3 font-mono text-xs">
-                          <a href={`/address/${entry.agent_address}`} className="text-primary hover:underline">
-                            {truncateAddress(entry.agent_address, 8)}
-                          </a>
-                        </td>
-                        <td className="px-6 py-3">
-                          <span className="rounded bg-accent/10 px-2 py-0.5 text-xs text-accent">
-                            {entry.action_type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3 text-right font-mono text-xs text-text">
-                          {entry.action_count.toLocaleString()}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="px-6 py-3 border-t border-border text-xs text-muted">
-              {activityReport.entries.length} entr{activityReport.entries.length === 1 ? "y" : "ies"} reported
+        {logEntries.length > 0 && (
+          <div className="mt-6">
+            <h2 className="text-sm font-semibold text-muted uppercase tracking-wider mb-3">Logs &amp; Events</h2>
+            <div className="rounded-xl border border-border bg-surface/50 p-4 space-y-2">
+              {logEntries.map((entry, i) => (
+                <pre key={i} className="font-mono text-xs text-text whitespace-pre-wrap break-all">{entry}</pre>
+              ))}
             </div>
           </div>
         )}

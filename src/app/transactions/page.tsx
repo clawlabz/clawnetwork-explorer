@@ -17,7 +17,7 @@ export const metadata = { title: "Transactions" };
 
 async function getRecentTransactions(network?: NetworkId): Promise<ParsedTx[]> {
   const height = await getBlockNumber(network);
-  const count = Math.min(height, 20);
+  const count = Math.min(height + 1, 20);
   const start = Math.max(0, height - count + 1);
 
   const blockPromises = [];
