@@ -130,11 +130,11 @@ export default async function AddressPage({ params, searchParams }: Props) {
             <div className="p-6">
               {/* Total Score */}
               <div className="flex items-center gap-4 mb-6">
-                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10">
-                  <span className="text-2xl font-bold text-primary">{agentScore.total.toLocaleString()}</span>
+                <div className="flex h-14 min-w-[3.5rem] items-center justify-center rounded-xl bg-primary/10 px-3">
+                  <span className="text-xl font-bold text-primary">{agentScore.total.toLocaleString()}</span>
                 </div>
                 <div>
-                  <p className="text-sm text-muted">Total Score</p>
+                  <p className="text-sm text-muted">Total Score <span className="text-text font-semibold">({(agentScore.total / 500).toFixed(0)}%)</span></p>
                   <p className="text-xs text-muted mt-0.5">
                     Decay Factor: <span className="text-text font-semibold">{(agentScore.decay_factor / 100).toFixed(1)}%</span>
                   </p>
@@ -307,8 +307,9 @@ function ScoreBar({
 }) {
   const capped = Math.min(score, max);
   const pct = Math.min(100, Math.max(0, (capped / max) * 100));
+  const isEmpty = capped === 0;
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center gap-3 ${isEmpty ? "opacity-40" : ""}`}>
       <Icon className="h-4 w-4 text-muted shrink-0" />
       <span className="w-32 shrink-0 text-xs text-muted">{label}</span>
       <div className="flex-1 h-2 rounded-full bg-border/50 overflow-hidden">
@@ -317,7 +318,7 @@ function ScoreBar({
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-20 text-right font-mono text-xs text-text shrink-0">
+      <span className="w-28 text-right font-mono text-xs text-text shrink-0 whitespace-nowrap">
         {capped.toLocaleString()} / {max.toLocaleString()}
       </span>
     </div>
