@@ -13,6 +13,7 @@ import {
   type AgentScore,
 } from "@/lib/rpc";
 import { Shield, ArrowLeft, Users, Layers, Blocks, Activity } from "lucide-react";
+import { ScoringGuide } from "@/components/ScoringGuide";
 
 export const metadata = { title: "Validators — ClawNetwork Explorer" };
 
@@ -276,6 +277,9 @@ export default async function ValidatorsPage() {
             </div>
           </div>
         )}
+
+        {/* Scoring methodology */}
+        <ScoringGuide />
       </main>
       <Footer />
     </>
