@@ -1,8 +1,9 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getBalance, getNonce, getAgent, getReputation, getTransactionsByAddress, getAgentScore, getServerNetwork, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, type AgentScore } from "@/lib/rpc";
-import { ArrowLeft, User, Coins, Shield, ArrowRightLeft, Star, Activity, Clock, Blocks, Wallet, Globe } from "lucide-react";
+import { ContractSection } from "@/components/ContractSection";
+import { getBalance, getNonce, getAgent, getReputation, getTransactionsByAddress, getAgentScore, getContractInfo, getContractCode, getServerNetwork, formatCLAW, truncateAddress, toHexAddress, TX_TYPE_NAMES, type AgentScore } from "@/lib/rpc";
+import { ArrowLeft, User, Coins, Shield, ArrowRightLeft, Star, Activity, Clock, Blocks, Wallet, Globe, FileCode, Hash, Box } from "lucide-react";
 
 const PAGE_SIZE = 20;
 
@@ -10,6 +11,18 @@ type Props = {
   params: Promise<{ address: string }>;
   searchParams: Promise<{ page?: string }>;
 };
+
+interface ContractInfoData {
+  address: string;
+  codeHash: string;
+  creator: string;
+  deployedAt: number;
+}
+
+interface ContractCodeData {
+  code: string;
+  size: number;
+}
 
 export async function generateMetadata({ params }: Props) {
   const { address } = await params;
@@ -30,19 +43,25 @@ export default async function AddressPage({ params, searchParams }: Props) {
   let reputation: unknown[] = [];
   let transactions: Record<string, unknown>[] = [];
   let agentScore: AgentScore | null = null;
+  let contractInfo: ContractInfoData | null = null;
+  let contractCode: ContractCodeData | null = null;
 
   try {
-    [balance, nonce, agent, reputation, transactions, agentScore] = await Promise.all([
+    [balance, nonce, agent, reputation, transactions, agentScore, contractInfo, contractCode] = await Promise.all([
       getBalance(address, network),
       getNonce(address, network),
       getAgent(address, network),
       getReputation(address, network),
       getTransactionsByAddress(address, PAGE_SIZE + 1, offset, network) as Promise<Record<string, unknown>[]>,
       getAgentScore(address, network),
+      getContractInfo(address, network) as Promise<ContractInfoData | null>,
+      getContractCode(address, network) as Promise<ContractCodeData | null>,
     ]);
   } catch (e) {
     console.error("Failed to fetch address data:", e);
   }
+
+  const isContract = contractInfo != null;
 
   // Deduplicate transactions by hash (RPC may return the same tx multiple times)
   const seen = new Set<string>();
@@ -65,12 +84,29 @@ export default async function AddressPage({ params, searchParams }: Props) {
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard
         </a>
 
+        {/* Header with type badge */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <User className="h-5 w-5 text-primary" />
+          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${isContract ? "bg-primary/10" : "bg-primary/10"}`}>
+            {isContract ? (
+              <FileCode className="h-5 w-5 text-primary" />
+            ) : (
+              <User className="h-5 w-5 text-primary" />
+            )}
           </div>
           <div>
-            <h1 className="text-xl font-bold">Address</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold">{isContract ? "Contract" : "Address"}</h1>
+              {isContract && (
+                <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                  Smart Contract
+                </span>
+              )}
+              {agent && (
+                <span className="rounded-full bg-green-500/15 px-2.5 py-0.5 text-xs font-semibold text-green-400">
+                  Agent
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm text-muted break-all">{address}</span>
               <CopyButton text={address} />
@@ -78,8 +114,8 @@ export default async function AddressPage({ params, searchParams }: Props) {
           </div>
         </div>
 
-        {/* Overview Cards */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-8">
+        {/* Account Overview Cards */}
+        <div className={`grid grid-cols-1 gap-4 ${isContract ? "md:grid-cols-3 lg:grid-cols-3" : "md:grid-cols-3"} mb-8`}>
           <div className="rounded-xl border border-border bg-surface/50 p-5">
             <div className="flex items-center gap-2 mb-2">
               <Coins className="h-4 w-4 text-primary" />
@@ -107,6 +143,73 @@ export default async function AddressPage({ params, searchParams }: Props) {
             </span>
           </div>
         </div>
+
+        {/* Contract Info Cards (only for contracts) */}
+        {isContract && contractInfo && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <User className="h-4 w-4 text-primary" />
+                <span className="text-xs text-muted uppercase tracking-wider">Creator</span>
+              </div>
+              {contractInfo.creator ? (
+                <a href={`/address/${contractInfo.creator}`} className="font-mono text-sm text-primary hover:underline">
+                  {truncateAddress(contractInfo.creator, 8)}
+                </a>
+              ) : (
+                <span className="text-muted">--</span>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Box className="h-4 w-4 text-primary" />
+                <span className="text-xs text-muted uppercase tracking-wider">Deployed At</span>
+              </div>
+              <span className="text-xl font-bold">
+                {contractInfo.deployedAt != null ? (
+                  <a href={`/block/${contractInfo.deployedAt}`} className="text-primary hover:underline">
+                    #{contractInfo.deployedAt.toLocaleString()}
+                  </a>
+                ) : (
+                  "--"
+                )}
+              </span>
+            </div>
+
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <Hash className="h-4 w-4 text-primary" />
+                <span className="text-xs text-muted uppercase tracking-wider">Code Hash</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm text-text truncate">{truncateAddress(contractInfo.codeHash, 8)}</span>
+                {contractInfo.codeHash && <CopyButton text={contractInfo.codeHash} />}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <FileCode className="h-4 w-4 text-primary" />
+                <span className="text-xs text-muted uppercase tracking-wider">Code Size</span>
+              </div>
+              <span className="text-xl font-bold">
+                {contractCode?.size != null ? `${contractCode.size.toLocaleString()} bytes` : "--"}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Contract Interaction Tabs (only for contracts) */}
+        {isContract && contractInfo && (
+          <div className="mb-8">
+            <ContractSection
+              address={address}
+              codeHash={contractInfo.codeHash}
+              codeSize={contractCode?.size ?? null}
+            />
+          </div>
+        )}
 
         {/* Agent Info */}
         {agent && (
@@ -212,7 +315,7 @@ export default async function AddressPage({ params, searchParams }: Props) {
                             <a href={`/tx/${txHash}`} className="text-primary hover:underline">
                               {truncateAddress(txHash)}
                             </a>
-                          ) : "—"}
+                          ) : "\u2014"}
                         </td>
                         <td className="px-6 py-3">
                           <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
@@ -224,26 +327,26 @@ export default async function AddressPage({ params, searchParams }: Props) {
                             <a href={`/address/${fromAddr}`} className="text-primary/70 hover:text-primary hover:underline">
                               {truncateAddress(fromAddr)}
                             </a>
-                          ) : "—"}
+                          ) : "\u2014"}
                         </td>
                         <td className="px-6 py-3 font-mono text-muted text-xs">
                           {toAddr ? (
                             <a href={`/address/${toAddr}`} className="text-primary/70 hover:text-primary hover:underline">
                               {truncateAddress(toAddr)}
                             </a>
-                          ) : "—"}
+                          ) : "\u2014"}
                         </td>
                         <td className="px-6 py-3 font-mono text-xs">
                           {amount ? (
                             <span className="text-primary">{formatCLAW(amount)} CLAW</span>
-                          ) : "—"}
+                          ) : "\u2014"}
                         </td>
                         <td className="px-6 py-3">
                           {blockHeight !== undefined ? (
                             <a href={`/block/${blockHeight}`} className="text-primary hover:underline font-mono text-xs">
                               {blockHeight.toLocaleString()}
                             </a>
-                          ) : "—"}
+                          ) : "\u2014"}
                         </td>
                       </tr>
                     );
@@ -292,7 +395,7 @@ export default async function AddressPage({ params, searchParams }: Props) {
   );
 }
 
-/* ── Helper Components ── */
+/* -- Helper Components -- */
 
 function ScoreBar({
   icon: Icon,
