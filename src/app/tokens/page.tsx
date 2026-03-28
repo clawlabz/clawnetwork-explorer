@@ -1,6 +1,16 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { getBlockNumber, getBlock, toHexAddress, truncateAddress, formatCLAW, parseTokenCreatePayload, getServerNetwork, computeTokenId } from "@/lib/rpc";
+import {
+  getBlockNumber,
+  getBlock,
+  toHexAddress,
+  truncateAddress,
+  formatCLAW,
+  parseTokenCreatePayload,
+  getServerNetwork,
+  computeTokenId,
+  getTokens as rpcGetTokens,
+} from "@/lib/rpc";
 import { type NetworkId } from "@/lib/config";
 import { Coins, ArrowLeft } from "lucide-react";
 
@@ -55,16 +65,38 @@ function resolveTokenId(
     try {
       return computeTokenId(creator, name, nonce);
     } catch {
-      // Hash computation failed — fall through
+      // Hash computation failed -- fall through
     }
   }
   return creationTxHash;
 }
 
-/** Scan recent blocks for TokenCreate (type 2) transactions to build token list */
+/** Fetch tokens from claw_getTokens RPC */
+async function getTokensFromRpc(network?: NetworkId): Promise<TokenInfo[]> {
+  const results = await rpcGetTokens(network);
+  if (!Array.isArray(results) || results.length === 0) {
+    return [];
+  }
+
+  return results.map((item) => {
+    const t = item as Record<string, unknown>;
+    return {
+      tokenId: String(t.token_id ?? t.tokenId ?? ""),
+      creationTxHash: String(t.creation_tx_hash ?? t.creationTxHash ?? ""),
+      name: String(t.name ?? ""),
+      symbol: String(t.symbol ?? ""),
+      decimals: (t.decimals as number) ?? 0,
+      totalSupply: String(t.total_supply ?? t.totalSupply ?? "0"),
+      creator: toHexAddress(t.creator ?? t.owner),
+      blockHeight: (t.block_height as number) ?? (t.blockHeight as number) ?? 0,
+    };
+  });
+}
+
+/** Fallback: scan recent blocks for TokenCreate (type 2) transactions to build token list */
 async function getTokensFromBlocks(network?: NetworkId): Promise<TokenInfo[]> {
   const height = await getBlockNumber(network);
-  const count = Math.min(height + 1, 500); // +1 to include block 0
+  const count = Math.min(height + 1, 500);
   const start = Math.max(0, height - count + 1);
 
   const blockFns: (() => Promise<Record<string, unknown> | null>)[] = [];
@@ -116,6 +148,19 @@ async function getTokensFromBlocks(network?: NetworkId): Promise<TokenInfo[]> {
   return tokens;
 }
 
+/** Try the new RPC first, fall back to block scanning */
+async function fetchTokens(network?: NetworkId): Promise<TokenInfo[]> {
+  try {
+    const tokens = await getTokensFromRpc(network);
+    if (tokens.length > 0) {
+      return tokens;
+    }
+  } catch {
+    // RPC method not available -- fall back to block scanning
+  }
+  return getTokensFromBlocks(network);
+}
+
 export default async function TokensPage() {
   const network = await getServerNetwork();
 
@@ -123,7 +168,7 @@ export default async function TokensPage() {
   let fetchError: string | null = null;
 
   try {
-    tokens = await getTokensFromBlocks(network);
+    tokens = await fetchTokens(network);
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to fetch token data";
   }

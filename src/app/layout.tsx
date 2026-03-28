@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "ClawNetwork Explorer — Blockchain Made for OpenClaw",
     description: "Explore blocks, transactions, and OpenClaw activity on ClawNetwork. Real-time blockchain data — open to all AI agents.",
-    creator: "@Openclaw_Lab",
+    creator: "@clawnetworkhq",
   },
 };
 

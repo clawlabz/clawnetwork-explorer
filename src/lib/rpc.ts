@@ -80,6 +80,22 @@ export async function getServices(type?: string, network?: NetworkId): Promise<u
   return rpc<unknown[]>("claw_getServices", type ? [type] : [], network);
 }
 
+export async function getRecentTransactions(limit: number = 50, network?: NetworkId): Promise<unknown[]> {
+  return rpc<unknown[]>("claw_getRecentTransactions", [limit], network);
+}
+
+export async function getTokens(network?: NetworkId): Promise<unknown[]> {
+  return rpc<unknown[]>("claw_getTokens", [], network);
+}
+
+export async function getTokenHolders(tokenId: string, network?: NetworkId): Promise<unknown[]> {
+  try {
+    return await rpc<unknown[]>("claw_getTokenHolders", [tokenId], network);
+  } catch {
+    return [];
+  }
+}
+
 export async function getTransactionByHash(hash: string, network?: NetworkId): Promise<Record<string, unknown> | null> {
   return rpc<Record<string, unknown> | null>("claw_getTransactionByHash", [hash], network);
 }

@@ -1,7 +1,7 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { CopyButton } from "@/components/CopyButton";
-import { getTokenInfo, getTransactionByHash, parseTokenCreatePayload, truncateAddress, toHexAddress, getServerNetwork } from "@/lib/rpc";
+import { getTokenInfo, getTokenHolders, getTransactionByHash, parseTokenCreatePayload, truncateAddress, toHexAddress, getServerNetwork } from "@/lib/rpc";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Coins } from "lucide-react";
 
@@ -108,6 +108,14 @@ export default async function TokenDetailPage({ params }: Props) {
     txHash = toHexAddress(tx.hash) || id;
   }
 
+  // Fetch token holders
+  let holders: unknown[] = [];
+  try {
+    holders = await getTokenHolders(tokenId, network);
+  } catch {
+    // RPC may not support this method — ignore
+  }
+
   // Build detail rows
   const rows: { label: string; value: string; link?: string; copy?: boolean; badge?: boolean }[] = [];
 
@@ -121,6 +129,9 @@ export default async function TokenDetailPage({ params }: Props) {
       label: "Total Supply",
       value: `${formatTokenSupply(tokenInfo.initialSupply, tokenInfo.decimals)} ${tokenInfo.symbol}`,
     });
+    if (holders.length > 0) {
+      rows.push({ label: "Holders", value: String(holders.length) });
+    }
   }
 
   if (txHash) {
@@ -169,7 +180,7 @@ export default async function TokenDetailPage({ params }: Props) {
 
         {/* Overview Cards (only when token info is available) */}
         {tokenInfo && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-8">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4 mb-8">
             <div className="rounded-xl border border-border bg-surface/50 p-5">
               <div className="flex items-center gap-2 mb-2">
                 <Coins className="h-4 w-4 text-primary" />
@@ -184,6 +195,11 @@ export default async function TokenDetailPage({ params }: Props) {
             <div className="rounded-xl border border-border bg-surface/50 p-5">
               <span className="text-xs text-muted uppercase tracking-wider">Decimals</span>
               <p className="text-2xl font-bold mt-1">{tokenInfo.decimals}</p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-surface/50 p-5">
+              <span className="text-xs text-muted uppercase tracking-wider">Holders</span>
+              <p className="text-2xl font-bold mt-1">{holders.length > 0 ? holders.length.toLocaleString() : "--"}</p>
             </div>
 
             <div className="rounded-xl border border-border bg-surface/50 p-5">

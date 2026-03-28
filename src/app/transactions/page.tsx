@@ -3,10 +3,12 @@ import { Footer } from "@/components/Footer";
 import {
   getBlockNumber,
   getBlock,
+  getRecentTransactions as rpcGetRecentTransactions,
   parseBlockTransaction,
   formatCLAW,
   truncateAddress,
   TX_TYPE_NAMES,
+  toHexAddress,
   getServerNetwork,
   type ParsedTx,
 } from "@/lib/rpc";
@@ -15,7 +17,31 @@ import { ArrowRightLeft, ArrowLeft } from "lucide-react";
 
 export const metadata = { title: "Transactions" };
 
-async function getRecentTransactions(network?: NetworkId): Promise<ParsedTx[]> {
+/** Convert RPC response items to ParsedTx format */
+function mapRpcTransaction(tx: Record<string, unknown>): ParsedTx {
+  const rawType = tx.tx_type;
+  const TX_TYPE_STRING_TO_NUM: Record<string, number> = {
+    AgentRegister: 0, TokenTransfer: 1, TokenCreate: 2, TokenMintTransfer: 3,
+    ReputationAttest: 4, ServiceRegister: 5, ContractDeploy: 6, ContractCall: 7,
+    StakeDeposit: 8, StakeWithdraw: 9, StakeClaim: 10, PlatformActivityReport: 11,
+    TokenApprove: 12, TokenBurn: 13, ChangeDelegation: 14, MinerRegister: 15,
+    MinerHeartbeat: 16, ContractUpgradeAnnounce: 17, ContractUpgradeExecute: 18,
+  };
+  const txType = typeof rawType === "string" ? (TX_TYPE_STRING_TO_NUM[rawType] ?? -1) : (rawType as number ?? -1);
+
+  return {
+    hash: toHexAddress(tx.hash) || `${tx.block_height ?? tx.blockHeight}:${tx.index ?? 0}`,
+    txType,
+    from: toHexAddress(tx.from),
+    to: toHexAddress(tx.to),
+    amount: String(tx.amount ?? ""),
+    timestamp: (tx.timestamp as number) ?? 0,
+    blockHeight: (tx.block_height as number) ?? (tx.blockHeight as number) ?? 0,
+  };
+}
+
+/** Fallback: scan last 100 blocks one by one */
+async function getRecentTransactionsFallback(network?: NetworkId): Promise<ParsedTx[]> {
   const height = await getBlockNumber(network);
   const count = Math.min(height + 1, 100);
   const start = Math.max(0, height - count + 1);
@@ -40,6 +66,18 @@ async function getRecentTransactions(network?: NetworkId): Promise<ParsedTx[]> {
   return txs;
 }
 
+async function fetchRecentTransactions(network?: NetworkId): Promise<ParsedTx[]> {
+  try {
+    const results = await rpcGetRecentTransactions(50, network);
+    if (Array.isArray(results) && results.length > 0) {
+      return results.map((tx) => mapRpcTransaction(tx as Record<string, unknown>));
+    }
+  } catch {
+    // RPC method not available — fall back to block scanning
+  }
+  return getRecentTransactionsFallback(network);
+}
+
 function formatTimeAgo(ts: number): string {
   const diff = Math.floor(Date.now() / 1000 - ts);
   if (diff < 60) return `${diff}s ago`;
@@ -55,7 +93,7 @@ export default async function TransactionsPage() {
   let fetchError: string | null = null;
 
   try {
-    transactions = await getRecentTransactions(network);
+    transactions = await fetchRecentTransactions(network);
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to fetch transactions";
   }
