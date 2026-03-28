@@ -150,13 +150,13 @@ export function Dashboard() {
         setValidatorCount(validators.size);
       }
 
-      // Compute network age from genesis block timestamp
+      // Compute network age from block 1 timestamp (block 0 has hardcoded genesis time)
       try {
-        const genesisBlock = await getBlock(0);
-        if (genesisBlock) {
-          const genesisTs = genesisBlock.timestamp as number;
+        const firstBlock = await getBlock(1);
+        if (firstBlock) {
+          const startTs = firstBlock.timestamp as number;
           const nowSecs = Math.floor(Date.now() / 1000);
-          const ageSecs = Math.max(0, nowSecs - genesisTs);
+          const ageSecs = Math.max(0, nowSecs - startTs);
           const days = Math.floor(ageSecs / 86400);
           const hours = Math.floor((ageSecs % 86400) / 3600);
           setNetworkAge(days > 0 ? `${days}d ${hours}h` : `${hours}h`);
