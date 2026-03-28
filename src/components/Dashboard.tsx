@@ -6,6 +6,7 @@ import {
   getBlockNumber,
   getBlock,
   getValidators,
+  getRecentTransactions,
   truncateAddress,
   toHexAddress,
   parseBlockTransaction,
@@ -64,6 +65,7 @@ export function Dashboard() {
   const [tps, setTps] = useState(0);
   const [avgBlockTime, setAvgBlockTime] = useState(0);
   const [validatorCount, setValidatorCount] = useState(0);
+  const [recentTxs, setRecentTxs] = useState<ParsedTx[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -146,6 +148,23 @@ export function Dashboard() {
         const validators = new Set(sorted.map((b) => toHexAddress(b.validator)).filter(Boolean));
         setValidatorCount(validators.size);
       }
+
+      // Fetch recent transactions via RPC (not from scanned blocks)
+      try {
+        const txResults = await getRecentTransactions(8);
+        if (Array.isArray(txResults) && txResults.length > 0) {
+          const mapped: ParsedTx[] = (txResults as Record<string, unknown>[]).map((tx) => ({
+            hash: toHexAddress(tx.hash) || "",
+            txType: (tx.txType as number) ?? -1,
+            from: toHexAddress(tx.from),
+            to: toHexAddress(tx.to),
+            amount: String(tx.amount ?? ""),
+            timestamp: (tx.timestamp as number) ?? 0,
+            blockHeight: (tx.blockHeight as number) ?? 0,
+          }));
+          setRecentTxs(mapped);
+        }
+      } catch { /* ignore — will show empty */ }
 
       setError(null);
     } catch (e) {
@@ -353,7 +372,7 @@ export function Dashboard() {
           </div>
           <div className="divide-y divide-border/50">
             {(() => {
-              const allTxs: ParsedTx[] = latestBlocks.flatMap((block) =>
+              const allTxs = recentTxs.length > 0 ? recentTxs : latestBlocks.flatMap((block) =>
                 (block.transactions || []).map((tx, txIdx) =>
                   parseBlockTransaction(tx as unknown as Record<string, unknown>, block.timestamp, block.height, txIdx)
                 )

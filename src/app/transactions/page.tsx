@@ -19,7 +19,8 @@ export const metadata = { title: "Transactions" };
 
 /** Convert RPC response items to ParsedTx format */
 function mapRpcTransaction(tx: Record<string, unknown>): ParsedTx {
-  const rawType = tx.tx_type;
+  // RPC returns txType (number) and typeName (string) — try both field names
+  const rawType = tx.txType ?? tx.tx_type ?? tx.typeName;
   const TX_TYPE_STRING_TO_NUM: Record<string, number> = {
     AgentRegister: 0, TokenTransfer: 1, TokenCreate: 2, TokenMintTransfer: 3,
     ReputationAttest: 4, ServiceRegister: 5, ContractDeploy: 6, ContractCall: 7,
