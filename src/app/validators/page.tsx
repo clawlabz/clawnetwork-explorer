@@ -161,8 +161,8 @@ export default async function ValidatorsPage() {
                   ) : (
                     validators.map((v, i) => {
                       const weightPct = totalWeight > 0 ? (v.weight / totalWeight) * 100 : 0;
-                      // AgentScore total ranges 0–50000 (5 dimensions × 10000 each)
-                      const scoreMax = 50000;
+                      // AgentScore total is a weighted average clamped to [0, 10000]
+                      const scoreMax = 10000;
                       const scorePct = Math.min(100, (v.agentScore / scoreMax) * 100);
                       const scoreColor = scorePct >= 80 ? "text-green-400" : scorePct >= 50 ? "text-yellow-400" : "text-red-400";
                       const scoreBarColor = scorePct >= 80 ? "bg-green-400" : scorePct >= 50 ? "bg-yellow-400" : "bg-red-400";

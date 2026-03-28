@@ -237,7 +237,7 @@ export default async function AddressPage({ params, searchParams }: Props) {
                   <span className="text-xl font-bold text-primary">{agentScore.total.toLocaleString()}</span>
                 </div>
                 <div>
-                  <p className="text-sm text-muted">Total Score <span className="text-text font-semibold">({(agentScore.total / 500).toFixed(0)}%)</span></p>
+                  <p className="text-sm text-muted">Total Score <span className="text-text font-semibold">({(agentScore.total / 100).toFixed(0)}%)</span></p>
                   <p className="text-xs text-muted mt-0.5">
                     Decay Factor: <span className="text-text font-semibold">{(agentScore.decay_factor / 100).toFixed(1)}%</span>
                   </p>
