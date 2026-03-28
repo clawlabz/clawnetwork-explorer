@@ -387,13 +387,29 @@ export function parseBlockTransaction(
 
   if (payload && payload.length > 0) {
     if (txType === 1 && payload.length >= 48) {
+      // TokenTransfer: to[32] + amount[16]
       to = toHexAddress(payload.slice(0, 32));
       amount = readU128LE(payload, 32);
     } else if (txType === 3 && payload.length >= 80) {
+      // TokenMintTransfer: token_id[32] + to[32] + amount[16]
       to = toHexAddress(payload.slice(32, 64));
       amount = readU128LE(payload, 64);
     } else if (txType === 4 && payload.length >= 32) {
+      // ReputationAttest: to[32]
       to = toHexAddress(payload.slice(0, 32));
+    } else if (txType === 8 && payload.length >= 50) {
+      // StakeDeposit: amount[16] + validator[32] + commission_bps[2]
+      amount = readU128LE(payload, 0);
+      const validator = toHexAddress(payload.slice(16, 48));
+      if (validator) to = validator; // non-zero = delegated to validator
+    } else if (txType === 9 && payload.length >= 48) {
+      // StakeWithdraw: amount[16] + validator[32]
+      amount = readU128LE(payload, 0);
+      const validator = toHexAddress(payload.slice(16, 48));
+      if (validator) to = validator;
+    } else if (txType === 14 && payload.length >= 66) {
+      // ChangeDelegation: validator[32] + new_owner[32] + commission_bps[2]
+      to = toHexAddress(payload.slice(32, 64));
     }
   }
 

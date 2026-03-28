@@ -66,6 +66,7 @@ export function Dashboard() {
   const [avgBlockTime, setAvgBlockTime] = useState(0);
   const [validatorCount, setValidatorCount] = useState(0);
   const [recentTxs, setRecentTxs] = useState<ParsedTx[]>([]);
+  const [networkAge, setNetworkAge] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -149,6 +150,19 @@ export function Dashboard() {
         setValidatorCount(validators.size);
       }
 
+      // Compute network age from genesis block timestamp
+      try {
+        const genesisBlock = await getBlock(0);
+        if (genesisBlock) {
+          const genesisTs = genesisBlock.timestamp as number;
+          const nowSecs = Math.floor(Date.now() / 1000);
+          const ageSecs = Math.max(0, nowSecs - genesisTs);
+          const days = Math.floor(ageSecs / 86400);
+          const hours = Math.floor((ageSecs % 86400) / 3600);
+          setNetworkAge(days > 0 ? `${days}d ${hours}h` : `${hours}h`);
+        }
+      } catch { /* ignore */ }
+
       // Fetch recent transactions via RPC (not from scanned blocks)
       try {
         const txResults = await getRecentTransactions(8);
@@ -191,20 +205,12 @@ export function Dashboard() {
 
   const height = (health?.height as number) || 0;
   const peerCount = (health?.peer_count as number) || 0;
-  const uptime = (health?.uptime_secs as number) || 0;
   const version = (health?.version as string) || "unknown";
   const epoch = (health?.epoch as number) || 0;
   const mempoolSize = (health?.mempool_size as number) || 0;
   const rawStatus = (health?.status as string) || "unknown";
   // RPC returns "ok" for healthy status — normalize to standard labels
   const status = rawStatus === "ok" ? "healthy" : rawStatus;
-
-  const formatUptime = (secs: number) => {
-    if (secs < 60) return `${secs}s`;
-    if (secs < 3600) return `${Math.floor(secs / 60)}m`;
-    if (secs < 86400) return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
-    return `${Math.floor(secs / 86400)}d ${Math.floor((secs % 86400) / 3600)}h`;
-  };
 
   return (
     <div className="space-y-6">
@@ -227,7 +233,7 @@ export function Dashboard() {
         <MiniStat icon={Clock} label="Avg Block Time" value={`${avgBlockTime}s`} />
         <MiniStat icon={Globe} label="Peers" value={peerCount.toString()} />
         <MiniStat icon={Blocks} label="Epoch" value={epoch.toString()} />
-        <MiniStat icon={Timer} label="Uptime" value={formatUptime(uptime)} />
+        <MiniStat icon={Timer} label="Network Age" value={networkAge || "—"} />
         <MiniStat icon={Cpu} label="Mempool" value={mempoolSize.toString()} />
       </div>
 
@@ -414,6 +420,8 @@ export function Dashboard() {
                             {truncateAddress(tx.to, 4)}
                           </a>
                         </>
+                      ) : (tx.txType === 8 || tx.txType === 9) ? (
+                        <span className="text-muted/60 italic"> → Self (Stake)</span>
                       ) : null}
                     </div>
                   </div>

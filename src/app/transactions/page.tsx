@@ -180,12 +180,16 @@ export default async function TransactionsPage() {
                             <a href={`/address/${tx.to}`} className="text-primary/70 hover:text-primary">
                               {truncateAddress(tx.to)}
                             </a>
+                          ) : (tx.txType === 8 || tx.txType === 9) ? (
+                            <span className="text-muted italic text-[10px]">Self (Stake)</span>
+                          ) : tx.txType === 10 ? (
+                            <span className="text-muted italic text-[10px]">Claim</span>
                           ) : (
                             <span className="text-muted">--</span>
                           )}
                         </td>
                         <td className="px-6 py-3 text-right font-mono text-xs">
-                          {tx.amount ? (
+                          {tx.amount && tx.amount !== "0" ? (
                             <span className="text-orange-500">{formatCLAW(tx.amount)} CLAW</span>
                           ) : (
                             <span className="text-muted">--</span>
