@@ -4,11 +4,13 @@ import {
   getValidators,
   getStakeDelegation,
   getValidatorDetail,
+  getAgentScore,
   getHealth,
   getServerNetwork,
   formatCLAW,
   truncateAddress,
   type ValidatorDetail,
+  type AgentScore,
 } from "@/lib/rpc";
 import { Shield, ArrowLeft, Users, Layers, Blocks, Activity } from "lucide-react";
 
@@ -59,19 +61,24 @@ export default async function ValidatorsPage() {
 
     const sorted = [...rawValidators].sort((a, b) => b.weight - a.weight);
 
-    // Fetch detail + delegation for each validator in parallel
+    // Fetch detail + delegation + agent score for each validator in parallel
     const enriched = await Promise.all(
       sorted.map(async (v): Promise<EnrichedValidator> => {
-        const [detail, delegation] = await Promise.all([
+        const [detail, delegation, score] = await Promise.all([
           getValidatorDetail(v.address, network),
           getStakeDelegation(v.address, network),
+          getAgentScore(v.address, network).catch(() => null),
         ]);
+
+        // Prefer the dedicated AgentScore RPC (has real data) over
+        // the agentScore field from getValidators (often returns 0).
+        const resolvedScore = score?.total ?? detail?.agentScore ?? v.agentScore;
 
         return {
           address: v.address,
           stake: detail?.stake ?? v.stake,
           weight: detail?.weight ?? v.weight,
-          agentScore: detail?.agentScore ?? v.agentScore,
+          agentScore: resolvedScore,
           commission_bps: detail?.commission_bps,
           delegatedBy: detail?.delegatedBy !== undefined ? detail.delegatedBy : delegation,
           uptime_pct: detail?.uptime?.uptime_pct,
@@ -91,9 +98,12 @@ export default async function ValidatorsPage() {
     try { return sum + BigInt(v.stake || "0"); } catch { return sum; }
   }, BigInt(0));
   const activeCount = validators.filter((v) => !v.jailed).length;
-  const avgScore = validators.length > 0
-    ? (validators.reduce((sum, v) => sum + v.agentScore, 0) / validators.length).toFixed(1)
-    : "0";
+  const avgScoreRaw = validators.length > 0
+    ? validators.reduce((sum, v) => sum + v.agentScore, 0) / validators.length
+    : 0;
+  const avgScore = avgScoreRaw >= 1000
+    ? `${(avgScoreRaw / 1000).toFixed(1)}K`
+    : avgScoreRaw.toFixed(0);
 
   return (
     <>
@@ -151,9 +161,11 @@ export default async function ValidatorsPage() {
                   ) : (
                     validators.map((v, i) => {
                       const weightPct = totalWeight > 0 ? (v.weight / totalWeight) * 100 : 0;
-                      const scorePct = Math.min(100, v.agentScore);
-                      const scoreColor = scorePct >= 95 ? "text-green-400" : scorePct >= 80 ? "text-yellow-400" : "text-red-400";
-                      const scoreBarColor = scorePct >= 95 ? "bg-green-400" : scorePct >= 80 ? "bg-yellow-400" : "bg-red-400";
+                      // AgentScore total ranges 0–50000 (5 dimensions × 10000 each)
+                      const scoreMax = 50000;
+                      const scorePct = Math.min(100, (v.agentScore / scoreMax) * 100);
+                      const scoreColor = scorePct >= 80 ? "text-green-400" : scorePct >= 50 ? "text-yellow-400" : "text-red-400";
+                      const scoreBarColor = scorePct >= 80 ? "bg-green-400" : scorePct >= 50 ? "bg-yellow-400" : "bg-red-400";
 
                       const status = v.jailed ? "Jailed" : (v.agentScore > 0 || BigInt(v.stake || "0") > BigInt(0)) ? "Active" : "Idle";
                       const statusDotColor = status === "Active" ? "bg-green-400" : status === "Jailed" ? "bg-red-400" : "bg-yellow-400";
@@ -220,7 +232,7 @@ export default async function ValidatorsPage() {
                                   />
                                 </div>
                                 <span className={`font-[JetBrains_Mono] text-xs font-medium ${scoreColor}`}>
-                                  {v.agentScore}
+                                  {v.agentScore.toLocaleString()}
                                 </span>
                               </div>
                             )}
