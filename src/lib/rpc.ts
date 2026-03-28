@@ -234,11 +234,50 @@ export async function getHealth(network?: NetworkId): Promise<Record<string, unk
 export function formatCLAW(baseUnits: string): string {
   try {
     const n = BigInt(baseUnits);
-    const whole = n / BigInt(1e9);
-    const frac = n % BigInt(1e9);
-    if (frac === BigInt(0)) return whole.toString();
-    const fracStr = frac.toString().padStart(9, "0").replace(/0+$/, "");
-    return `${whole}.${fracStr}`;
+    if (n === BigInt(0)) return "0";
+
+    const DECIMALS = BigInt(1e9);
+    const whole = n / DECIMALS;
+    const frac = n % DECIMALS;
+
+    // Full decimal string (9 digits, trailing zeros stripped)
+    const fracStr = frac === BigInt(0)
+      ? ""
+      : frac.toString().padStart(9, "0").replace(/0+$/, "");
+
+    // Build the raw number as a JS number for precision decisions
+    const raw = Number(whole) + (fracStr ? Number(`0.${fracStr}`) : 0);
+
+    // Add thousands separators to the whole part
+    const wholeFormatted = whole.toLocaleString("en-US");
+
+    if (raw >= 1000) {
+      // 2 decimal places
+      const trimmed = fracStr.slice(0, 2).padEnd(2, "0");
+      if (trimmed === "00") return wholeFormatted;
+      return `${wholeFormatted}.${trimmed}`;
+    }
+
+    if (raw >= 1) {
+      // 4 decimal places
+      const trimmed = fracStr.slice(0, 4).padEnd(4, "0").replace(/0+$/, "");
+      if (!trimmed) return wholeFormatted;
+      return `${wholeFormatted}.${trimmed}`;
+    }
+
+    // < 1: up to 6 significant decimal digits
+    // e.g. "0.001234", "0.000001"
+    const fullFrac = frac.toString().padStart(9, "0");
+    // Find first non-zero digit position
+    let significantCount = 0;
+    let endIdx = 0;
+    for (let i = 0; i < fullFrac.length; i++) {
+      if (fullFrac[i] !== "0") significantCount++;
+      if (significantCount > 0) endIdx = i + 1;
+      if (significantCount >= 6) break;
+    }
+    const trimmedFrac = fullFrac.slice(0, endIdx);
+    return `0.${trimmedFrac}`;
   } catch {
     return "0";
   }
@@ -274,7 +313,7 @@ export interface ParsedTx {
 
 export const TX_TYPE_NAMES: Record<number, string> = {
   0: "AgentRegister",
-  1: "TokenTransfer",
+  1: "Transfer",
   2: "TokenCreate",
   3: "TokenMintTransfer",
   4: "ReputationAttest",

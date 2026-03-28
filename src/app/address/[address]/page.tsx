@@ -44,8 +44,17 @@ export default async function AddressPage({ params, searchParams }: Props) {
     console.error("Failed to fetch address data:", e);
   }
 
-  const hasNextPage = transactions.length > PAGE_SIZE;
-  const displayTransactions = hasNextPage ? transactions.slice(0, PAGE_SIZE) : transactions;
+  // Deduplicate transactions by hash (RPC may return the same tx multiple times)
+  const seen = new Set<string>();
+  const uniqueTransactions = transactions.filter(tx => {
+    const hash = toHexAddress(tx.hash);
+    if (!hash || seen.has(hash)) return false;
+    seen.add(hash);
+    return true;
+  });
+
+  const hasNextPage = uniqueTransactions.length > PAGE_SIZE;
+  const displayTransactions = hasNextPage ? uniqueTransactions.slice(0, PAGE_SIZE) : uniqueTransactions;
   const hasPrevPage = currentPage > 1;
 
   return (
@@ -192,7 +201,8 @@ export default async function AddressPage({ params, searchParams }: Props) {
                     const fromAddr = toHexAddress(tx.from);
                     const toAddr = toHexAddress(tx.to);
                     const txType = (tx.txType ?? tx.tx_type) as number | undefined;
-                    const typeName = (tx.typeName as string) || (txType !== undefined ? TX_TYPE_NAMES[txType] : undefined) || `Type ${txType ?? "?"}`;
+                    const rawTypeName = (tx.typeName as string) || (txType !== undefined ? TX_TYPE_NAMES[txType] : undefined) || `Type ${txType ?? "?"}`;
+                    const typeName = rawTypeName === "TokenTransfer" ? "Transfer" : rawTypeName;
                     const amount = tx.amount as string | undefined;
                     const blockHeight = (tx.blockHeight ?? tx.block_height) as number | undefined;
                     return (
@@ -295,7 +305,8 @@ function ScoreBar({
   score: number;
   max: number;
 }) {
-  const pct = Math.min(100, Math.max(0, (score / max) * 100));
+  const capped = Math.min(score, max);
+  const pct = Math.min(100, Math.max(0, (capped / max) * 100));
   return (
     <div className="flex items-center gap-3">
       <Icon className="h-4 w-4 text-muted shrink-0" />
@@ -307,7 +318,7 @@ function ScoreBar({
         />
       </div>
       <span className="w-20 text-right font-mono text-xs text-text shrink-0">
-        {score.toLocaleString()} / {max.toLocaleString()}
+        {capped.toLocaleString()} / {max.toLocaleString()}
       </span>
     </div>
   );

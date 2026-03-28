@@ -73,7 +73,8 @@ export default async function TransactionPage({ params }: Props) {
   // Only use fields that claw_getTransactionByHash actually returns
   const txHash = toHexAddress(tx.hash) || String(tx.hash ?? hash);
   const txType = (tx.txType as number | undefined) ?? (tx.tx_type as number | undefined);
-  const typeName = String(tx.typeName ?? tx.type_name ?? (txType !== undefined ? `Type ${txType}` : "Unknown"));
+  const rawTypeName = String(tx.typeName ?? tx.type_name ?? (txType !== undefined ? `Type ${txType}` : "Unknown"));
+  const typeName = rawTypeName === "TokenTransfer" ? "Transfer" : rawTypeName;
   const from = toHexAddress(tx.from);
   const to = toHexAddress(tx.to);
   const amount = tx.amount != null ? String(tx.amount) : null;

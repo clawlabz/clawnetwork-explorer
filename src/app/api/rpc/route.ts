@@ -6,6 +6,7 @@ const ALLOWED_METHODS = new Set([
   "claw_getNonce", "claw_getAgent", "claw_getReputation",
   "claw_getServices", "claw_getTransactionByHash", "claw_getTransactionsByAddress",
   "claw_getValidators",
+  "claw_getTokenInfo",
   "claw_getContractInfo", "claw_getContractCode",
   "claw_getContractStorage", "claw_callContractView",
   "claw_getAgentScore",
