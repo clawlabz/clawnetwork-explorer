@@ -38,6 +38,7 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  ReferenceLine,
 } from "recharts";
 
 interface BlockInfo {
@@ -72,7 +73,7 @@ export function Dashboard() {
 
   fetchDataRef.current = async () => {
     try {
-      const MAX_BLOCKS = 30;
+      const MAX_BLOCKS = 100;
       const [h, height] = await Promise.all([getHealth(), getBlockNumber()]);
       setHealth(h);
 
@@ -109,21 +110,23 @@ export function Dashboard() {
 
       // Build chart data from sorted blocks
       const sorted = [...allBlocks].sort((a, b) => a.height - b.height);
-      const points: ChartPoint[] = [];
+      const allPoints: ChartPoint[] = [];
       for (let i = 1; i < sorted.length; i++) {
         const timeDiff = sorted[i].timestamp - sorted[i - 1].timestamp;
-        points.push({
+        allPoints.push({
           block: sorted[i].height,
           blockTime: Math.max(0, timeDiff),
           txCount: sorted[i].transactions?.length || 0,
         });
       }
-      setChartData(points);
+      // Show last 30 points on chart, but use all points for avg
+      setChartData(allPoints.slice(-30));
 
       // Stats
       const totalTx = sorted.reduce((sum, b) => sum + (b.transactions?.length || 0), 0);
       setTotalTxns(totalTx);
 
+      // Rolling average from all fetched blocks (up to 100)
       if (sorted.length >= 2) {
         const timeSpan = sorted[sorted.length - 1].timestamp - sorted[0].timestamp;
         setAvgBlockTime(Math.round((timeSpan / (sorted.length - 1)) * 100) / 100);
@@ -256,6 +259,7 @@ export function Dashboard() {
                     labelFormatter={(v) => `Block #${v}`}
                     formatter={(value) => [`${value}s`, "Block Time"]}
                   />
+                  <ReferenceLine y={3} stroke="#666" strokeDasharray="6 3" label={{ value: "Target", fill: "#666", fontSize: 10, position: "insideTopRight" }} />
                   <Area type="monotone" dataKey="blockTime" stroke="#F96706" strokeWidth={2} fill="url(#btGrad)" dot={false} activeDot={{ r: 3, fill: "#F96706" }} />
                 </AreaChart>
               </ResponsiveContainer>

@@ -138,7 +138,7 @@ export default async function ValidatorsPage() {
                     <th className="px-4 py-3 text-left">Weight</th>
                     <th className="px-4 py-3 text-left hidden md:table-cell">Commission</th>
                     <th className="px-4 py-3 text-left">Agent Score</th>
-                    <th className="px-4 py-3 text-left hidden md:table-cell">Blocks</th>
+                    <th className="px-4 py-3 text-left hidden md:table-cell">Blocks (Epoch)</th>
                     <th className="px-4 py-3 text-left">Delegated By</th>
                     <th className="px-4 py-3 text-left">Status</th>
                   </tr>
@@ -209,17 +209,21 @@ export default async function ValidatorsPage() {
 
                           {/* Agent Score with color coding */}
                           <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 w-16 rounded-full bg-border overflow-hidden">
-                                <div
-                                  className={`h-full rounded-full transition-all ${scoreBarColor}`}
-                                  style={{ width: `${scorePct}%` }}
-                                />
+                            {v.agentScore === 0 ? (
+                              <span className="font-[JetBrains_Mono] text-xs text-muted/50">&mdash;</span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-16 rounded-full bg-border overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${scoreBarColor}`}
+                                    style={{ width: `${scorePct}%` }}
+                                  />
+                                </div>
+                                <span className={`font-[JetBrains_Mono] text-xs font-medium ${scoreColor}`}>
+                                  {v.agentScore}
+                                </span>
                               </div>
-                              <span className={`font-[JetBrains_Mono] text-xs font-medium ${scoreColor}`}>
-                                {v.agentScore}
-                              </span>
-                            </div>
+                            )}
                           </td>
 
                           {/* Blocks Produced */}

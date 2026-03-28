@@ -17,7 +17,7 @@ export const metadata = { title: "Transactions" };
 
 async function getRecentTransactions(network?: NetworkId): Promise<ParsedTx[]> {
   const height = await getBlockNumber(network);
-  const count = Math.min(height + 1, 20);
+  const count = Math.min(height + 1, 100);
   const start = Math.max(0, height - count + 1);
 
   const blockPromises = [];
@@ -75,7 +75,7 @@ export default async function TransactionsPage() {
           <div>
             <h1 className="text-2xl font-bold">Transactions</h1>
             <p className="text-xs text-muted mt-0.5">
-              Recent transactions from the last 20 blocks
+              Recent transactions
               {transactions.length > 0 && ` (${transactions.length} total)`}
             </p>
           </div>
@@ -105,7 +105,7 @@ export default async function TransactionsPage() {
                   {transactions.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-8 text-center text-muted">
-                        No transactions found in the last 20 blocks
+                        No transactions found
                       </td>
                     </tr>
                   ) : (
