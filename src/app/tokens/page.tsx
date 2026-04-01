@@ -190,9 +190,11 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
   const totalUnbondingStr = supplyData?.totalUnbonding as string | undefined || "0";
   const numHolders = supplyData?.numBalanceEntries as number | undefined || 0;
 
-  // Calculate circulating and staked supplies
-  const totalBalancesBig = BigInt(totalBalancesStr);
+  // Calculate derived supply metrics
+  const MAX_SUPPLY = BigInt("1000000000000000000"); // 1B CLAW in base units
+  const totalSupplyBig = BigInt(totalSupplyStr);
   const stakedBig = BigInt(totalStakesStr) + BigInt(totalUnbondingStr);
+  const burnedBig = MAX_SUPPLY - totalSupplyBig;
 
   // Parse mining stats
   const activeMiners = miningData?.activeMiners as number | undefined || 0;
@@ -207,6 +209,10 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
         </div>
         <div className="divide-y divide-border/50">
           <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
+            <span className="text-sm text-muted">Max Supply</span>
+            <span className="font-mono font-semibold">{formatCLAW(MAX_SUPPLY.toString())} CLAW</span>
+          </div>
+          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
             <span className="text-sm text-muted">Total Supply</span>
             <span className="font-mono font-semibold">{formatCLAW(totalSupplyStr)} CLAW</span>
           </div>
@@ -217,6 +223,10 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
           <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
             <span className="text-sm text-muted">Staked Supply</span>
             <span className="font-mono font-semibold">{formatCLAW(stakedBig.toString())} CLAW</span>
+          </div>
+          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
+            <span className="text-sm text-muted">Burned</span>
+            <span className="font-mono font-semibold text-red-400">{formatCLAW(burnedBig.toString())} CLAW</span>
           </div>
           <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
             <span className="text-sm text-muted">Holders</span>
