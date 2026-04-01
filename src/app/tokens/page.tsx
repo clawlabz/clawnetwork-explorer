@@ -10,9 +10,13 @@ import {
   getServerNetwork,
   computeTokenId,
   getTokens as rpcGetTokens,
+  getSupplyInfo,
+  getTransactionCount,
+  getValidators,
+  getMiningStats,
 } from "@/lib/rpc";
 import { type NetworkId } from "@/lib/config";
-import { Coins, ArrowLeft } from "lucide-react";
+import { Coins, ArrowLeft, Users, Zap, Blocks, TrendingUp, Package } from "lucide-react";
 
 export const metadata = { title: "Tokens" };
 
@@ -161,6 +165,120 @@ async function fetchTokens(network?: NetworkId): Promise<TokenInfo[]> {
   return getTokensFromBlocks(network);
 }
 
+/** Supply Overview and Network Stats Section */
+async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
+  // Fetch all data in parallel
+  const [supplyInfo, blockHeight, validators, miningStats, txCount] = await Promise.allSettled([
+    getSupplyInfo(network),
+    getBlockNumber(network),
+    getValidators(network),
+    getMiningStats(network),
+    getTransactionCount(network),
+  ]);
+
+  // Extract values with fallback to null on failure
+  const supplyData = supplyInfo.status === "fulfilled" ? (supplyInfo.value as Record<string, unknown>) : null;
+  const blockNum = blockHeight.status === "fulfilled" ? blockHeight.value : null;
+  const validatorList = validators.status === "fulfilled" ? (validators.value as unknown[]) : [];
+  const miningData = miningStats.status === "fulfilled" ? (miningStats.value as Record<string, unknown>) : null;
+  const txCountNum = txCount.status === "fulfilled" ? txCount.value : null;
+
+  // Parse supply data
+  const totalSupplyStr = supplyData?.totalSupply as string | undefined || "0";
+  const totalBalancesStr = supplyData?.totalBalances as string | undefined || "0";
+  const totalStakesStr = supplyData?.totalStakes as string | undefined || "0";
+  const totalUnbondingStr = supplyData?.totalUnbonding as string | undefined || "0";
+  const numHolders = supplyData?.numBalanceEntries as number | undefined || 0;
+
+  // Calculate circulating and staked supplies
+  const totalBalancesBig = BigInt(totalBalancesStr);
+  const stakedBig = BigInt(totalStakesStr) + BigInt(totalUnbondingStr);
+
+  // Parse mining stats
+  const activeMiners = miningData?.activeMiners as number | undefined || 0;
+  const blockRewardStr = miningData?.currentBlockReward as string | undefined || "0";
+
+  return (
+    <div className="space-y-8 mb-8">
+      {/* Supply Overview Table */}
+      <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-bold">Supply Overview</h2>
+        </div>
+        <div className="divide-y divide-border/50">
+          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
+            <span className="text-sm text-muted">Total Supply</span>
+            <span className="font-mono font-semibold">{formatCLAW(totalSupplyStr)} CLAW</span>
+          </div>
+          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
+            <span className="text-sm text-muted">Circulating Supply</span>
+            <span className="font-mono font-semibold">{formatCLAW(totalBalancesStr)} CLAW</span>
+          </div>
+          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
+            <span className="text-sm text-muted">Staked Supply</span>
+            <span className="font-mono font-semibold">{formatCLAW(stakedBig.toString())} CLAW</span>
+          </div>
+          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
+            <span className="text-sm text-muted">Holders</span>
+            <span className="font-mono font-semibold">{numHolders.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Network Stats Cards */}
+      <div>
+        <h2 className="text-lg font-bold mb-4">Network Stats</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {/* Validators Card */}
+          <div className="rounded-lg border border-border bg-surface/50 p-4 hover:bg-primary/5 transition-colors">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-xs text-muted uppercase tracking-wider">Validators</span>
+              <Users className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-2xl font-bold">{validatorList.length}</p>
+          </div>
+
+          {/* Active Miners Card */}
+          <div className="rounded-lg border border-border bg-surface/50 p-4 hover:bg-primary/5 transition-colors">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-xs text-muted uppercase tracking-wider">Active Miners</span>
+              <Package className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-2xl font-bold">{activeMiners}</p>
+          </div>
+
+          {/* Block Height Card */}
+          <div className="rounded-lg border border-border bg-surface/50 p-4 hover:bg-primary/5 transition-colors">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-xs text-muted uppercase tracking-wider">Block Height</span>
+              <Blocks className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-2xl font-bold">{blockNum !== null ? blockNum.toLocaleString() : "—"}</p>
+          </div>
+
+          {/* Total Transactions Card */}
+          <div className="rounded-lg border border-border bg-surface/50 p-4 hover:bg-primary/5 transition-colors">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-xs text-muted uppercase tracking-wider">Transactions</span>
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-2xl font-bold">{txCountNum !== null ? txCountNum.toLocaleString() : "—"}</p>
+          </div>
+
+          {/* Block Reward Card */}
+          <div className="rounded-lg border border-border bg-surface/50 p-4 hover:bg-primary/5 transition-colors">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-xs text-muted uppercase tracking-wider">Block Reward</span>
+              <Zap className="h-4 w-4 text-primary" />
+            </div>
+            <p className="text-2xl font-bold">{formatCLAW(blockRewardStr)} <span className="text-sm text-muted font-normal">CLAW</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default async function TokensPage() {
   const network = await getServerNetwork();
 
@@ -187,95 +305,74 @@ export default async function TokensPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Tokens</h1>
-            <p className="text-xs text-muted mt-0.5">Custom tokens created on ClawNetwork</p>
+            <p className="text-xs text-muted mt-0.5">All tokens on ClawNetwork</p>
           </div>
         </div>
 
-        {/* Native Token Card */}
-        <div className="mb-8 rounded-xl border border-primary/30 bg-primary/5 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-primary">CLAW</h2>
-              <p className="text-sm text-muted">ClawNetwork Native Token</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-muted">Total Supply</p>
-              <p className="text-lg font-bold">1,000,000,000 CLAW</p>
-            </div>
-          </div>
-          <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-xs text-muted">Decimals</p>
-              <p className="font-bold">9</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted">Type</p>
-              <p className="font-bold">Native</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted">Symbol</p>
-              <p className="font-bold">CLAW</p>
-            </div>
-          </div>
-        </div>
+        <SupplyAndStatsSection network={network} />
 
-        {fetchError ? (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-8 text-center">
-            <h2 className="text-lg font-semibold text-red-400 mb-2">Failed to load tokens</h2>
-            <p className="text-sm text-muted">{fetchError}</p>
-          </div>
-        ) : tokens.length === 0 ? (
-          <div className="rounded-xl border border-border bg-surface/50 p-8 text-center">
-            <Coins className="h-12 w-12 text-muted/30 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-muted mb-2">No Custom Tokens Yet</h2>
-            <p className="text-sm text-muted">Custom tokens created via TokenCreate transactions will appear here.</p>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
-                    <th className="px-6 py-3 text-left">#</th>
-                    <th className="px-6 py-3 text-left">Token</th>
-                    <th className="px-6 py-3 text-left">Symbol</th>
-                    <th className="px-6 py-3 text-left">Decimals</th>
-                    <th className="px-6 py-3 text-left">Total Supply</th>
-                    <th className="px-6 py-3 text-left">Creator</th>
-                    <th className="px-6 py-3 text-left">Block</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tokens.map((token, i) => (
-                    <tr key={token.tokenId} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
-                      <td className="px-6 py-3 text-muted">{i + 1}</td>
-                      <td className="px-6 py-3 font-semibold">
-                        <a href={`/token/${token.tokenId}`} className="text-primary hover:underline">
-                          {token.name}
-                        </a>
-                      </td>
-                      <td className="px-6 py-3">
-                        <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{token.symbol}</span>
-                      </td>
-                      <td className="px-6 py-3 text-center">{token.decimals}</td>
-                      <td className="px-6 py-3 font-mono text-xs">{formatTokenSupply(token.totalSupply, token.decimals)}</td>
-                      <td className="px-6 py-3 font-mono text-xs">
-                        <a href={`/address/${token.creator}`} className="text-primary hover:underline">
-                          {truncateAddress(token.creator)}
-                        </a>
-                      </td>
-                      <td className="px-6 py-3">
-                        <a href={`/block/${token.blockHeight}`} className="text-primary hover:underline font-mono text-xs">
-                          {token.blockHeight.toLocaleString()}
-                        </a>
-                      </td>
+        {/* Custom Tokens Section */}
+        <div className="mt-8">
+          <h2 className="text-lg font-bold mb-6">Custom Tokens</h2>
+
+          {fetchError ? (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-8 text-center">
+              <h2 className="text-lg font-semibold text-red-400 mb-2">Failed to load tokens</h2>
+              <p className="text-sm text-muted">{fetchError}</p>
+            </div>
+          ) : tokens.length === 0 ? (
+            <div className="rounded-xl border border-border bg-surface/50 p-8 text-center">
+              <Coins className="h-12 w-12 text-muted/30 mx-auto mb-4" />
+              <h2 className="text-lg font-semibold text-muted mb-2">No Custom Tokens Yet</h2>
+              <p className="text-sm text-muted">Custom tokens created via TokenCreate transactions will appear here.</p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left">#</th>
+                      <th className="px-6 py-3 text-left">Token</th>
+                      <th className="px-6 py-3 text-left">Symbol</th>
+                      <th className="px-6 py-3 text-left">Decimals</th>
+                      <th className="px-6 py-3 text-left">Total Supply</th>
+                      <th className="px-6 py-3 text-left">Creator</th>
+                      <th className="px-6 py-3 text-left">Block</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {tokens.map((token, i) => (
+                      <tr key={token.tokenId} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
+                        <td className="px-6 py-3 text-muted">{i + 1}</td>
+                        <td className="px-6 py-3 font-semibold">
+                          <a href={`/token/${token.tokenId}`} className="text-primary hover:underline">
+                            {token.name}
+                          </a>
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{token.symbol}</span>
+                        </td>
+                        <td className="px-6 py-3 text-center">{token.decimals}</td>
+                        <td className="px-6 py-3 font-mono text-xs">{formatTokenSupply(token.totalSupply, token.decimals)}</td>
+                        <td className="px-6 py-3 font-mono text-xs">
+                          <a href={`/address/${token.creator}`} className="text-primary hover:underline">
+                            {truncateAddress(token.creator)}
+                          </a>
+                        </td>
+                        <td className="px-6 py-3">
+                          <a href={`/block/${token.blockHeight}`} className="text-primary hover:underline font-mono text-xs">
+                            {token.blockHeight.toLocaleString()}
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </main>
       <Footer />
     </>
