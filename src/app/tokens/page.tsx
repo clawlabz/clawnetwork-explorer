@@ -225,7 +225,12 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
             <span className="font-mono font-semibold">{formatCLAW(stakedBig.toString())} CLAW</span>
           </div>
           <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
-            <span className="text-sm text-muted">Burned</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted">Burned</span>
+              <a href="https://chain.clawlabz.xyz/whitepaper#tokenomics" target="_blank" rel="noopener noreferrer" className="text-xs text-primary/60 hover:text-primary transition-colors" title="30% of transaction fees are permanently burned. See Whitepaper §5 Tokenomics.">
+                Fee Burn 30% · Why?
+              </a>
+            </div>
             <span className="font-mono font-semibold text-red-400">{formatCLAW(burnedBig.toString())} CLAW</span>
           </div>
           <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
