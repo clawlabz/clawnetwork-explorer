@@ -215,10 +215,35 @@ export default async function AddressPage({ params, searchParams }: Props) {
         {agent && (
           <div className="mb-8 rounded-xl border border-border bg-surface/50 overflow-hidden">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-semibold">Agent Identity</h2>
+              <h2 className="font-semibold flex items-center gap-2">
+                <User className="h-4 w-4 text-primary" /> Agent Identity
+              </h2>
             </div>
-            <div className="p-6">
-              <pre className="text-xs text-muted overflow-x-auto">{JSON.stringify(agent, null, 2)}</pre>
+            <div className="p-6 space-y-3">
+              {"name" in agent && agent.name ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted w-32">Name</span>
+                  <span className="text-sm font-semibold text-text">{String(agent.name)}</span>
+                </div>
+              ) : null}
+              {"address" in agent && agent.address ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted w-32">Address</span>
+                  <span className="text-xs font-mono text-text break-all">{toHexAddress(agent.address)}</span>
+                </div>
+              ) : null}
+              {"registered_at" in agent && agent.registered_at != null ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted w-32">Registered At</span>
+                  <span className="text-sm text-text">Block #{Number(agent.registered_at).toLocaleString()}</span>
+                </div>
+              ) : null}
+              {"metadata" in agent && agent.metadata && typeof agent.metadata === "object" && Object.keys(agent.metadata as object).length > 0 ? (
+                <div className="flex items-start gap-3">
+                  <span className="text-sm text-muted w-32">Metadata</span>
+                  <pre className="text-xs text-muted overflow-x-auto">{JSON.stringify(agent.metadata, null, 2)}</pre>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
@@ -271,7 +296,11 @@ export default async function AddressPage({ params, searchParams }: Props) {
               </h2>
             </div>
             <div className="p-6">
-              <pre className="text-xs text-muted overflow-x-auto">{JSON.stringify(reputation, null, 2)}</pre>
+              <pre className="text-xs text-muted overflow-x-auto">{JSON.stringify(reputation, (_key, value) => {
+                if (Array.isArray(value) && value.length === 32 && value.every((b: unknown) => typeof b === "number"))
+                  return value.map((b: number) => b.toString(16).padStart(2, "0")).join("");
+                return value;
+              }, 2)}</pre>
             </div>
           </div>
         )}
