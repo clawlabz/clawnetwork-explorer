@@ -11,7 +11,10 @@ export async function GET(req: NextRequest) {
   try {
     const network = parseNetwork(req);
     const rpcUrl = getRpcUrl(network);
-    const res = await fetch(`${rpcUrl}/version`, { cache: "no-store" });
+    const res = await fetch(`${rpcUrl}/version`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    });
 
     if (!res.ok) {
       return NextResponse.json({ error: { message: "Version endpoint not available" } }, { status: 404 });
