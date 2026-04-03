@@ -247,6 +247,36 @@ export async function getHealth(network?: NetworkId): Promise<Record<string, unk
   return res.json();
 }
 
+export interface VersionInfo {
+  node_version: string;
+  upgrade_level: "up_to_date" | "recommended" | "required" | "critical";
+  latest_version: string;
+  minimum_version: string;
+  release_url: string;
+  changelog: string;
+  announcement: string | null;
+  halt_height: number | null;
+}
+
+export async function getVersion(network?: NetworkId): Promise<VersionInfo | null> {
+  const resolvedNetwork = network ?? getClientNetwork();
+
+  try {
+    if (isServer) {
+      const rpcUrl = getRpcUrl(resolvedNetwork);
+      const res = await fetch(`${rpcUrl}/version`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return null;
+      return await res.json();
+    }
+
+    const res = await fetch(`/api/version?network=${resolvedNetwork}`, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export function formatCLAW(baseUnits: string): string {
   try {
     const n = BigInt(baseUnits);

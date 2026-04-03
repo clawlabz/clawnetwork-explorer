@@ -7,12 +7,14 @@ import {
   getBlock,
   getValidators,
   getRecentTransactions,
+  getVersion,
   truncateAddress,
   toHexAddress,
   parseBlockTransaction,
   formatCLAW,
   TX_TYPE_NAMES,
   type ParsedTx,
+  type VersionInfo,
 } from "@/lib/rpc";
 import {
   Layers,
@@ -28,6 +30,8 @@ import {
   TrendingUp,
   Box,
   ArrowUpRight,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { useNetwork } from "./NetworkContext";
 import {
@@ -59,6 +63,7 @@ interface ChartPoint {
 export function Dashboard() {
   const { config: networkConfig } = useNetwork();
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
+  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [latestBlocks, setLatestBlocks] = useState<BlockInfo[]>([]);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
   const [totalTxns, setTotalTxns] = useState(0);
@@ -77,8 +82,9 @@ export function Dashboard() {
   fetchDataRef.current = async () => {
     try {
       const MAX_BLOCKS = 100;
-      const [h, height] = await Promise.all([getHealth(), getBlockNumber()]);
+      const [h, height, versionData] = await Promise.all([getHealth(), getBlockNumber(), getVersion()]);
       setHealth(h);
+      setVersionInfo(versionData);
 
       const lastHeight = lastFetchedHeightRef.current;
       let allBlocks: BlockInfo[];
@@ -220,6 +226,36 @@ export function Dashboard() {
         </div>
       )}
 
+      {versionInfo?.upgrade_level === "critical" && (
+        <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-3 text-sm text-red-300 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Critical Update Required</p>
+            <p className="text-red-200 text-xs mt-1">Your node version {versionInfo?.node_version} requires an immediate upgrade to {versionInfo?.latest_version}. Please update as soon as possible.</p>
+          </div>
+        </div>
+      )}
+
+      {versionInfo?.announcement && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 px-4 py-3 text-sm text-blue-300 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Network Announcement</p>
+            <p className="text-blue-200 text-xs mt-1">{versionInfo?.announcement}</p>
+          </div>
+        </div>
+      )}
+
+      {versionInfo?.upgrade_level === "required" && (
+        <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 px-4 py-3 text-sm text-orange-300 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold">Update Available: {versionInfo?.latest_version}</p>
+            <p className="text-orange-200 text-xs mt-1">{versionInfo?.changelog}</p>
+          </div>
+        </div>
+      )}
+
       {/* Hero Stats - Primary Metrics */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard icon={Layers} label="Block Height" value={height.toLocaleString()} color="text-primary" />
@@ -238,7 +274,7 @@ export function Dashboard() {
       </div>
 
       {/* Network Status Bar */}
-      <div className="flex items-center gap-4 rounded-xl border border-border bg-surface/30 px-5 py-3">
+      <div className="flex items-center gap-4 rounded-xl border border-border bg-surface/30 px-5 py-3 flex-wrap">
         <div className="flex items-center gap-2">
           <span className={`inline-block h-2.5 w-2.5 rounded-full ${status === "healthy" ? "bg-emerald-400" : status === "degraded" ? "bg-yellow-400" : "bg-red-400"}`} />
           <span className="text-xs uppercase tracking-wider text-muted">Network</span>
@@ -250,6 +286,24 @@ export function Dashboard() {
         <div className="flex items-center gap-1.5">
           <Activity className="h-3 w-3 text-primary/50" />
           <span className="text-xs text-muted">v{version}</span>
+          {versionInfo?.upgrade_level === "recommended" && (
+            <span className="inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded bg-yellow-500/20 border border-yellow-500/30">
+              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+              <span className="text-[10px] text-yellow-400 font-semibold">Update</span>
+            </span>
+          )}
+          {versionInfo?.upgrade_level === "required" && (
+            <span className="inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded bg-orange-500/20 border border-orange-500/30">
+              <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+              <span className="text-[10px] text-orange-400 font-semibold">Required</span>
+            </span>
+          )}
+          {versionInfo?.upgrade_level === "critical" && (
+            <span className="inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded bg-red-500/20 border border-red-500/30">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+              <span className="text-[10px] text-red-400 font-semibold">Critical</span>
+            </span>
+          )}
         </div>
         <div className="h-4 w-px bg-border" />
         <div className="flex items-center gap-1.5">
