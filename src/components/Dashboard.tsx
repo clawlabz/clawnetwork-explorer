@@ -171,7 +171,7 @@ export function Dashboard() {
 
       // Fetch recent transactions via RPC (not from scanned blocks)
       try {
-        const txResults = await getRecentTransactions(50);
+        const txResults = await getRecentTransactions(500);
         if (Array.isArray(txResults) && txResults.length > 0) {
           const mapped: ParsedTx[] = (txResults as Record<string, unknown>[]).map((tx) => ({
             hash: toHexAddress(tx.hash) || "",
