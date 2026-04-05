@@ -181,7 +181,7 @@ export function Dashboard() {
             amount: String(tx.amount ?? ""),
             timestamp: (tx.timestamp as number) ?? 0,
             blockHeight: (tx.blockHeight as number) ?? 0,
-          }));
+          })).filter((tx) => tx.txType !== 15 && tx.txType !== 16); // Hide miner operational txs
           setRecentTxs(mapped);
         }
       } catch { /* ignore — will show empty */ }

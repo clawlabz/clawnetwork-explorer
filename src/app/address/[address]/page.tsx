@@ -69,6 +69,9 @@ export default async function AddressPage({ params, searchParams }: Props) {
     const hash = toHexAddress(tx.hash);
     if (!hash || seen.has(hash)) return false;
     seen.add(hash);
+    // Hide miner operational txs (MinerRegister=15, MinerHeartbeat=16)
+    const t = (tx.txType ?? tx.tx_type) as number | undefined;
+    if (t === 15 || t === 16) return false;
     return true;
   });
 

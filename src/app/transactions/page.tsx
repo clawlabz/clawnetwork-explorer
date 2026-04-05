@@ -90,11 +90,15 @@ function formatTimeAgo(ts: number): string {
 export default async function TransactionsPage() {
   const network = await getServerNetwork();
 
+  // Miner operational tx types hidden by default (MinerRegister=15, MinerHeartbeat=16)
+  const HIDDEN_TX_TYPES = new Set([15, 16]);
+
   let transactions: ParsedTx[] = [];
   let fetchError: string | null = null;
 
   try {
-    transactions = await fetchRecentTransactions(network);
+    const all = await fetchRecentTransactions(network);
+    transactions = all.filter((tx) => !HIDDEN_TX_TYPES.has(tx.txType));
   } catch (e) {
     fetchError = e instanceof Error ? e.message : "Failed to fetch transactions";
   }
