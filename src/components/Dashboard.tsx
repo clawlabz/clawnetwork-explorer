@@ -439,7 +439,7 @@ export function Dashboard() {
                 )
               );
               if (allTxs.length === 0) {
-                return <div className="px-5 py-8 text-center text-sm text-muted">No transactions yet</div>;
+                return <div className="px-5 py-8 text-center text-sm text-muted">No recent transactions</div>;
               }
               return allTxs.slice(0, 8).map((tx, i) => (
                 <div key={i} className="flex items-center gap-4 px-5 py-3 hover:bg-primary/5 transition-colors">

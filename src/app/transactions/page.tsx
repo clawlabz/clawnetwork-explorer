@@ -148,7 +148,7 @@ export default async function TransactionsPage() {
                   {transactions.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-8 text-center text-muted">
-                        No transactions found
+                        No business transactions found in recent blocks. Miner operational transactions (heartbeat, registration) are hidden by default.
                       </td>
                     </tr>
                   ) : (
