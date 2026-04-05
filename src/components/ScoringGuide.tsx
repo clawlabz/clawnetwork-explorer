@@ -77,6 +77,13 @@ export function ScoringGuide() {
             then multiplied by a time decay factor.
           </p>
 
+          {/* Transition Note */}
+          <div className="bg-accent/10 border border-accent/20 rounded-lg p-4">
+            <p className="text-xs text-muted leading-relaxed">
+              <strong>Note:</strong> The Agent Score system is currently transitioning from legacy ReputationAttestation-based scoring to a multi-dimensional model. Displayed scores may use the transition scoring during this period.
+            </p>
+          </div>
+
           {/* Weight tables */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="rounded-lg border border-border bg-bg p-4">

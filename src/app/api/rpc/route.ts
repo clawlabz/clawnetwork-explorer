@@ -20,6 +20,8 @@ const ALLOWED_METHODS = new Set([
   "claw_getTokens",
   "claw_getTokenHolders",
   "claw_getTransactionReceipt",
+  "claw_totalSupply",
+  "claw_getTransactionCount",
 ]);
 
 function parseNetwork(req: NextRequest): NetworkId {
