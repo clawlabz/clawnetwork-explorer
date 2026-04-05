@@ -171,7 +171,7 @@ export function Dashboard() {
 
       // Fetch recent transactions via RPC (not from scanned blocks)
       try {
-        const txResults = await getRecentTransactions(8);
+        const txResults = await getRecentTransactions(50);
         if (Array.isArray(txResults) && txResults.length > 0) {
           const mapped: ParsedTx[] = (txResults as Record<string, unknown>[]).map((tx) => ({
             hash: toHexAddress(tx.hash) || "",
@@ -181,7 +181,8 @@ export function Dashboard() {
             amount: String(tx.amount ?? ""),
             timestamp: (tx.timestamp as number) ?? 0,
             blockHeight: (tx.blockHeight as number) ?? 0,
-          })).filter((tx) => tx.txType !== 15 && tx.txType !== 16); // Hide miner operational txs
+          })).filter((tx) => tx.txType !== 15 && tx.txType !== 16) // Hide miner operational txs
+            .slice(0, 8); // Dashboard only shows latest 8
           setRecentTxs(mapped);
         }
       } catch { /* ignore — will show empty */ }

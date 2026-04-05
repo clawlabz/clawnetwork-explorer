@@ -69,7 +69,7 @@ async function getRecentTransactionsFallback(network?: NetworkId): Promise<Parse
 
 async function fetchRecentTransactions(network?: NetworkId): Promise<ParsedTx[]> {
   try {
-    const results = await rpcGetRecentTransactions(50, network);
+    const results = await rpcGetRecentTransactions(200, network);
     if (Array.isArray(results) && results.length > 0) {
       return results.map((tx) => mapRpcTransaction(tx as Record<string, unknown>));
     }
