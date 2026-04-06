@@ -2,6 +2,7 @@
   "name": "clawnetwork-explorer",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -11,6 +12,7 @@
   },
   "dependencies": {
     "@noble/hashes": "^2.0.1",
+    "@supabase/supabase-js": "^2.101.1",
     "lucide-react": "^0.475",
     "next": "^15",
     "react": "^19",
