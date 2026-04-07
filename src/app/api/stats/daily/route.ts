@@ -14,11 +14,15 @@ export async function GET(req: NextRequest) {
       unique_receivers: string;
       active_addresses: string;
       type_distribution: Record<string, number> | null;
+      daily_total_fees: string;
+      daily_avg_fee: string;
     }>(
       `SELECT
          d.date, d.tx_count, d.transfer_volume, d.unique_senders, d.unique_receivers,
          d.type_distribution,
-         COALESCE(a.active_addresses, d.unique_senders) AS active_addresses
+         COALESCE(a.active_addresses, d.unique_senders) AS active_addresses,
+         COALESCE(d.daily_total_fees, '0') AS daily_total_fees,
+         COALESCE(d.daily_avg_fee, '0') AS daily_avg_fee
        FROM explorer_daily_stats d
        LEFT JOIN LATERAL (
          SELECT COUNT(DISTINCT addr)::TEXT AS active_addresses FROM (

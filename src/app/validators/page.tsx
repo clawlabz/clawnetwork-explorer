@@ -188,7 +188,7 @@ export default async function ValidatorsPage() {
                           {/* Validator Address */}
                           <td className="px-4 py-3">
                             <a
-                              href={`/address/${v.address}`}
+                              href={`/validators/${v.address}`}
                               className="font-[JetBrains_Mono] text-xs text-primary hover:underline"
                             >
                               {truncateAddress(v.address, 8)}

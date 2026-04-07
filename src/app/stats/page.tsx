@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { getBlockNumber, getBlock, getHealth, getValidators, formatCLAW } from "@/lib/rpc";
-import { Layers, Clock, Activity, ArrowRightLeft, Users } from "lucide-react";
+import { Layers, Clock, Activity, ArrowRightLeft, Users, DollarSign } from "lucide-react";
 import { useNetwork } from "@/components/NetworkContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -18,6 +18,7 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
+  ComposedChart,
 } from "recharts";
 
 interface BlockData {
@@ -39,6 +40,8 @@ interface DailyStats {
   transfer_volume: string;
   unique_senders: number;
   unique_receivers: number;
+  daily_total_fees: string;
+  daily_avg_fee: string;
 }
 
 export default function StatsPage() {
@@ -436,6 +439,60 @@ export default function StatsPage() {
                   />
                   <Area type="monotone" dataKey="transfer_volume_claw" stroke="#00D084" fill="url(#transferGradient)" fillOpacity={1} dot={false} />
                 </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Daily Fee Trend */}
+          <div className="rounded-xl border border-border bg-surface/50 p-6">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-primary" />
+              Daily Fee Trend ({dailyData.length} days)
+            </h2>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={dailyData.map((d) => ({
+                  ...d,
+                  daily_total_fees_claw: Number(BigInt(d.daily_total_fees) / BigInt(1e9)),
+                  daily_avg_fee_claw: Number(BigInt(d.daily_avg_fee) / BigInt(1e9))
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: "#888", fontSize: 11 }}
+                    tickFormatter={(v) => {
+                      const d = new Date(v);
+                      return `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")}`;
+                    }}
+                    stroke="#444"
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fill: "#888", fontSize: 11 }}
+                    stroke="#444"
+                    label={{ value: "Total Fees (CLAW)", angle: -90, position: "insideLeft", fill: "#888", fontSize: 12 }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fill: "#888", fontSize: 11 }}
+                    stroke="#444"
+                    label={{ value: "Avg Fee (CLAW)", angle: 90, position: "insideRight", fill: "#888", fontSize: 12 }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#140E0A",
+                      border: "1px solid #2A1C14",
+                      borderRadius: "8px",
+                      color: "#fff",
+                      fontSize: 12,
+                    }}
+                    labelFormatter={(v) => `Date: ${v}`}
+                    formatter={(value: unknown) => [`${Number(value ?? 0).toLocaleString()} CLAW`, ""]}
+                  />
+                  <Bar yAxisId="left" dataKey="daily_total_fees_claw" fill="#F96706" fillOpacity={0.6} radius={[4, 4, 0, 0]} maxBarSize={20} name="Total Fees" />
+                  <Line yAxisId="right" type="monotone" dataKey="daily_avg_fee_claw" stroke="#00D084" strokeWidth={2} dot={false} activeDot={{ r: 4 }} name="Avg Fee" />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
