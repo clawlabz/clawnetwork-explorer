@@ -191,14 +191,39 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
   const totalUnbondingStr = (supplyData?.unbonding_supply ?? supplyData?.totalUnbonding) as string | undefined || "0";
   const numHolders = (supplyData?.num_balance_entries ?? supplyData?.numBalanceEntries) as number | undefined || 0;
 
+  // Genesis addresses — these are non-circulating (locked/reserved)
+  const GENESIS_ADDRESSES = new Set([
+    "01" + "00".repeat(31), // Node Incentives (40%)
+    "02" + "00".repeat(31), // Ecosystem Fund (25%)
+    "71fa1a514e07c7c96bf0c825c29dfc8059cfa995318972dd258a4e316873e66b", // Team (15%)
+    "04" + "00".repeat(31), // Early Contributors (10%)
+    "05" + "00".repeat(31), // Liquidity Reserve (10%)
+  ]);
+
   // Calculate derived supply metrics
   const MAX_SUPPLY = BigInt("1000000000000000000"); // 1B CLAW in base units
   const totalSupplyBig = BigInt(totalSupplyStr);
-  const circulatingBig = BigInt(totalBalancesStr);
+  const allBalancesBig = BigInt(totalBalancesStr); // includes genesis
   const stakedBig = BigInt(totalStakesStr) + BigInt(totalUnbondingStr);
   const burnedBig = MAX_SUPPLY - totalSupplyBig;
-  const circulatingPct = totalSupplyBig > BigInt(0) ? (Number(circulatingBig * BigInt(10000) / totalSupplyBig) / 100).toFixed(1) : "0";
-  const stakingPct = totalSupplyBig > BigInt(0) ? (Number(stakedBig * BigInt(10000) / totalSupplyBig) / 100).toFixed(1) : "0";
+
+  // Real circulating = all balances - genesis address balances
+  // We need to fetch genesis balances from the audit endpoint
+  let genesisLockedBig = BigInt(0);
+  try {
+    const auditData = await getTotalSupplyAudit(network);
+    const allBalances = (auditData.balances as { address: string; balance: string }[]) || [];
+    for (const b of allBalances) {
+      if (GENESIS_ADDRESSES.has(b.address)) {
+        genesisLockedBig += BigInt(b.balance || "0");
+      }
+    }
+  } catch { /* fallback: genesis locked = 0, circulating = all balances */ }
+
+  const realCirculatingBig = allBalancesBig - genesisLockedBig;
+  const circulatingPct = totalSupplyBig > BigInt(0) ? (Number(realCirculatingBig * BigInt(10000) / totalSupplyBig) / 100).toFixed(2) : "0";
+  const stakingPct = totalSupplyBig > BigInt(0) ? (Number(stakedBig * BigInt(10000) / totalSupplyBig) / 100).toFixed(2) : "0";
+  const lockedPct = totalSupplyBig > BigInt(0) ? (Number(genesisLockedBig * BigInt(10000) / totalSupplyBig) / 100).toFixed(1) : "0";
 
   // Parse mining stats
   const activeMiners = miningData?.activeMiners as number | undefined || 0;
@@ -210,7 +235,7 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <div className="rounded-xl border border-border bg-surface/50 p-5">
           <p className="text-xs text-muted uppercase tracking-wider mb-2">Circulating Supply</p>
-          <p className="text-xl font-bold text-primary">{formatCLAW(totalBalancesStr)}</p>
+          <p className="text-xl font-bold text-primary">{formatCLAW(realCirculatingBig.toString())}</p>
           <p className="text-xs text-muted mt-1">CLAW · <span className="text-primary font-semibold">{circulatingPct}%</span> of total</p>
         </div>
         <div className="rounded-xl border border-border bg-surface/50 p-5">
@@ -224,9 +249,9 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
           <p className="text-xs text-muted mt-1">CLAW · Max 1B</p>
         </div>
         <div className="rounded-xl border border-border bg-surface/50 p-5">
-          <p className="text-xs text-muted uppercase tracking-wider mb-2">Holders</p>
-          <p className="text-xl font-bold">{numHolders.toLocaleString()}</p>
-          <p className="text-xs text-muted mt-1">unique addresses</p>
+          <p className="text-xs text-muted uppercase tracking-wider mb-2">Non-Circulating</p>
+          <p className="text-xl font-bold text-yellow-400">{formatCLAW(genesisLockedBig.toString())}</p>
+          <p className="text-xs text-muted mt-1">CLAW · <span className="text-yellow-400">{lockedPct}%</span> genesis locked</p>
         </div>
       </div>
 
@@ -246,7 +271,11 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
           </div>
           <div className="flex items-center justify-between px-6 py-3">
             <span className="text-sm text-muted">Circulating</span>
-            <span className="font-mono text-sm">{formatCLAW(totalBalancesStr)} CLAW <span className="text-xs text-muted">({circulatingPct}%)</span></span>
+            <span className="font-mono text-sm">{formatCLAW(realCirculatingBig.toString())} CLAW <span className="text-xs text-muted">({circulatingPct}%)</span></span>
+          </div>
+          <div className="flex items-center justify-between px-6 py-3">
+            <span className="text-sm text-yellow-400/70">Non-Circulating (Genesis)</span>
+            <span className="font-mono text-sm text-yellow-400">{formatCLAW(genesisLockedBig.toString())} CLAW <span className="text-xs text-muted">({lockedPct}%)</span></span>
           </div>
           <div className="flex items-center justify-between px-6 py-3">
             <span className="text-sm text-muted">Staked + Unbonding</span>
