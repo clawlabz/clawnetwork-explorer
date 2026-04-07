@@ -8,12 +8,13 @@ function getPool(): Pool {
     if (!connectionString) {
       throw new Error("EXPLORER_DATABASE_URL not configured");
     }
+    // Strip sslmode from URL to prevent pg driver from overriding our ssl config
+    const cleanUrl = connectionString.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+    const needsSsl = connectionString.includes("sslmode=require") || connectionString.includes("ssl=true");
     pool = new Pool({
-      connectionString,
+      connectionString: cleanUrl,
       max: 5,
-      ssl: connectionString.includes("sslmode=require")
-        ? { rejectUnauthorized: false }
-        : undefined,
+      ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
     });
   }
   return pool;
