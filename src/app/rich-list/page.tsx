@@ -10,32 +10,50 @@ import { ArrowLeft, Trophy, Wallet } from "lucide-react";
 
 export const metadata = { title: "Rich List — ClawNetwork Explorer" };
 
-interface BalanceEntry {
+interface HoldingEntry {
   address: string;
   balance: string;
+  stake: string;
+  total: string;
 }
 
 export default async function RichListPage() {
   const network = await getServerNetwork();
-  let balances: BalanceEntry[] = [];
+  let holdings: HoldingEntry[] = [];
   let totalSupply = "0";
   let fetchError: string | null = null;
 
   try {
     const data = await getTotalSupplyAudit(network);
     totalSupply = (data.totalSupply as string) || "0";
-    const allBalances = (data.balances as BalanceEntry[]) || [];
+    const allBalances = (data.balances as { address: string; balance: string }[]) || [];
+    const allStakes = (data.stakes as { address: string; stake: string }[]) || [];
 
-    // Sort by balance descending and take top 100
-    balances = allBalances
+    // Merge balances and stakes by address
+    const holdingMap = new Map<string, { balance: bigint; stake: bigint }>();
+    for (const b of allBalances) {
+      const existing = holdingMap.get(b.address) || { balance: BigInt(0), stake: BigInt(0) };
+      existing.balance = BigInt(b.balance || "0");
+      holdingMap.set(b.address, existing);
+    }
+    for (const s of allStakes) {
+      const existing = holdingMap.get(s.address) || { balance: BigInt(0), stake: BigInt(0) };
+      existing.stake = BigInt(s.stake || "0");
+      holdingMap.set(s.address, existing);
+    }
+
+    // Sort by total holdings (balance + stake) descending, take top 100
+    holdings = Array.from(holdingMap.entries())
+      .map(([address, { balance, stake }]) => ({
+        address,
+        balance: balance.toString(),
+        stake: stake.toString(),
+        total: (balance + stake).toString(),
+      }))
       .sort((a, b) => {
-        try {
-          const aBig = BigInt(a.balance || "0");
-          const bBig = BigInt(b.balance || "0");
-          return bBig > aBig ? 1 : bBig < aBig ? -1 : 0;
-        } catch {
-          return 0;
-        }
+        const aBig = BigInt(a.total);
+        const bBig = BigInt(b.total);
+        return bBig > aBig ? 1 : bBig < aBig ? -1 : 0;
       })
       .slice(0, 100);
   } catch (e) {
@@ -92,38 +110,38 @@ export default async function RichListPage() {
                     <th className="px-4 py-3 text-left w-12">Rank</th>
                     <th className="px-4 py-3 text-left">Address</th>
                     <th className="px-4 py-3 text-right">Balance</th>
+                    <th className="px-4 py-3 text-right">Staked</th>
+                    <th className="px-4 py-3 text-right">Total</th>
                     <th className="px-4 py-3 text-right">% of Supply</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {balances.length === 0 ? (
+                  {holdings.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-muted">
+                      <td colSpan={6} className="px-4 py-8 text-center text-muted">
                         No balance data found
                       </td>
                     </tr>
                   ) : (
-                    balances.map((entry, i) => {
+                    holdings.map((entry, i) => {
                       const percentOfSupply = (() => {
                         try {
-                          const balance = BigInt(entry.balance || "0");
+                          const total = BigInt(entry.total || "0");
                           const supply = BigInt(totalSupply || "1");
                           if (supply === BigInt(0)) return "0.00%";
-                          const pct = (Number(balance) / Number(supply)) * 100;
+                          const pct = Number(total * BigInt(10000) / supply) / 100;
                           return `${pct.toFixed(2)}%`;
                         } catch {
                           return "—";
                         }
                       })();
+                      const hasStake = BigInt(entry.stake || "0") > BigInt(0);
 
                       return (
                         <tr key={entry.address} className="border-b border-border/50 hover:bg-primary/5 transition-colors">
-                          {/* Rank */}
                           <td className="px-4 py-3 font-[JetBrains_Mono] text-muted text-xs">
                             #{i + 1}
                           </td>
-
-                          {/* Address Link */}
                           <td className="px-4 py-3">
                             <a
                               href={`/address/${entry.address}`}
@@ -132,16 +150,22 @@ export default async function RichListPage() {
                               {truncateAddress(entry.address, 8)}
                             </a>
                           </td>
-
-                          {/* Balance */}
+                          <td className="px-4 py-3 text-right font-[JetBrains_Mono] text-xs">
+                            {formatCLAW(entry.balance)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-[JetBrains_Mono] text-xs">
+                            {hasStake ? (
+                              <span className="text-purple-400">{formatCLAW(entry.stake)}</span>
+                            ) : (
+                              <span className="text-muted/50">—</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-right">
                             <span className="font-[JetBrains_Mono] font-bold text-xs">
-                              {formatCLAW(entry.balance)}
+                              {formatCLAW(entry.total)}
                             </span>
                             <span className="text-muted font-normal ml-1">CLAW</span>
                           </td>
-
-                          {/* Percentage */}
                           <td className="px-4 py-3 text-right font-[JetBrains_Mono] text-xs text-muted">
                             {percentOfSupply}
                           </td>

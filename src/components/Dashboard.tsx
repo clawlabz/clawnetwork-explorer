@@ -295,45 +295,6 @@ export function Dashboard() {
         <MiniStat icon={Cpu} label="Mempool" value={mempoolSize.toString()} />
       </div>
 
-      {/* Supply & Network Stats */}
-      {supplyInfo && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard
-            icon={Coins}
-            label="Total Supply"
-            value={formatCLAW(String(supplyInfo.total_supply || "0"))}
-            subtext="CLAW"
-            color="text-emerald-400"
-          />
-          <StatCard
-            icon={Coins}
-            label="Circulating"
-            value={formatCLAW(String(supplyInfo.circulating_supply || "0"))}
-            subtext="CLAW"
-            color="text-blue-400"
-          />
-          <StatCard
-            icon={Lock}
-            label="Staking Rate"
-            value={(() => {
-              const total = BigInt(String(supplyInfo.total_supply || "0"));
-              const staked = BigInt(String(supplyInfo.staked_supply || "0"));
-              if (total === BigInt(0)) return "0%";
-              return `${(Number(staked * BigInt(10000) / total) / 100).toFixed(1)}%`;
-            })()}
-            subtext={`${formatCLAW(String(supplyInfo.staked_supply || "0"))} CLAW staked`}
-            color="text-purple-400"
-          />
-          <StatCard
-            icon={Cpu}
-            label="Active Miners"
-            value={String(miningStats?.activeMiners ?? "—")}
-            subtext={`of ${miningStats?.totalMiners ?? "—"} total`}
-            color="text-amber-400"
-          />
-        </div>
-      )}
-
       {/* Network Status Bar */}
       <div className="flex items-center gap-4 rounded-xl border border-border bg-surface/30 px-5 py-3 flex-wrap">
         <div className="flex items-center gap-2">
