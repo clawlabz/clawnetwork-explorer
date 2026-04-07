@@ -104,7 +104,6 @@ export function Header() {
           <a href="/" className="text-sm text-muted hover:text-primary transition-colors">Dashboard</a>
           <a href="/stats" className="text-sm text-muted hover:text-primary transition-colors">Stats</a>
           <a href="/validators" className="text-sm text-muted hover:text-primary transition-colors">Validators</a>
-          <a href="/rich-list" className="text-sm text-muted hover:text-primary transition-colors">Rich List</a>
           <a href="/tokens" className="text-sm text-muted hover:text-primary transition-colors">Tokens</a>
           <a href="/contracts" className="text-sm text-muted hover:text-primary transition-colors">Contracts</a>
           <a href="/rewards" className="text-sm text-muted hover:text-primary transition-colors">Rewards</a>
@@ -188,7 +187,6 @@ export function Header() {
             { href: "/", label: "Dashboard" },
             { href: "/stats", label: "Stats" },
             { href: "/validators", label: "Validators" },
-            { href: "/rich-list", label: "Rich List" },
             { href: "/tokens", label: "Tokens" },
             { href: "/contracts", label: "Contracts" },
             { href: "/rewards", label: "Rewards" },

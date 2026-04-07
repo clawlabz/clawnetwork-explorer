@@ -14,9 +14,10 @@ import {
   getTransactionCount,
   getValidators,
   getMiningStats,
+  getTotalSupplyAudit,
 } from "@/lib/rpc";
 import { type NetworkId } from "@/lib/config";
-import { Coins, ArrowLeft, Users, Zap, Blocks, TrendingUp, Package } from "lucide-react";
+import { Coins, ArrowLeft, Users, Zap, Blocks, TrendingUp, Package, Trophy } from "lucide-react";
 
 export const metadata = { title: "Tokens" };
 
@@ -388,8 +389,149 @@ export default async function TokensPage() {
             </div>
           )}
         </div>
+
+        {/* Rich List Section */}
+        <RichListSection network={network} />
       </main>
       <Footer />
     </>
+  );
+}
+
+/* ── Genesis address labels ── */
+const KNOWN_ADDRESSES: Record<string, { label: string; type: "genesis" | "system" }> = {
+  // genesis_address_hex(N) = N as first byte + 31 zero bytes
+  ["01" + "00".repeat(31)]: { label: "Node Incentives", type: "genesis" },
+  ["02" + "00".repeat(31)]: { label: "Ecosystem Fund", type: "genesis" },
+  "71fa1a514e07c7c96bf0c825c29dfc8059cfa995318972dd258a4e316873e66b": { label: "Team", type: "genesis" },
+  ["04" + "00".repeat(31)]: { label: "Early Contributors", type: "genesis" },
+  ["05" + "00".repeat(31)]: { label: "Liquidity Reserve", type: "genesis" },
+};
+
+async function RichListSection({ network }: { network?: NetworkId }) {
+  let holdings: { address: string; balance: string; stake: string; total: string }[] = [];
+  let totalSupply = "0";
+
+  try {
+    const data = await getTotalSupplyAudit(network);
+    totalSupply = (data.totalSupply as string) || "0";
+    const allBalances = (data.balances as { address: string; balance: string }[]) || [];
+    const allStakes = (data.stakes as { address: string; stake: string }[]) || [];
+
+    const holdingMap = new Map<string, { balance: bigint; stake: bigint }>();
+    for (const b of allBalances) {
+      const existing = holdingMap.get(b.address) || { balance: BigInt(0), stake: BigInt(0) };
+      existing.balance = BigInt(b.balance || "0");
+      holdingMap.set(b.address, existing);
+    }
+    for (const s of allStakes) {
+      const existing = holdingMap.get(s.address) || { balance: BigInt(0), stake: BigInt(0) };
+      existing.stake = BigInt(s.stake || "0");
+      holdingMap.set(s.address, existing);
+    }
+
+    holdings = Array.from(holdingMap.entries())
+      .map(([address, { balance, stake }]) => ({
+        address,
+        balance: balance.toString(),
+        stake: stake.toString(),
+        total: (balance + stake).toString(),
+      }))
+      .sort((a, b) => {
+        const aBig = BigInt(a.total);
+        const bBig = BigInt(b.total);
+        return bBig > aBig ? 1 : bBig < aBig ? -1 : 0;
+      })
+      .slice(0, 100);
+  } catch {
+    return null;
+  }
+
+  const genesisCount = holdings.filter((h) => KNOWN_ADDRESSES[h.address]).length;
+  const genesisTotal = holdings
+    .filter((h) => KNOWN_ADDRESSES[h.address])
+    .reduce((sum, h) => sum + BigInt(h.total), BigInt(0));
+
+  return (
+    <div className="mt-8" id="rich-list">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-bold">Rich List</h2>
+          <span className="text-xs text-muted">Top {holdings.length} addresses by total holdings</span>
+        </div>
+        {genesisCount > 0 && (
+          <div className="text-xs text-muted">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+              {genesisCount} genesis addresses · {formatCLAW(genesisTotal.toString())} CLAW non-circulating
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-muted text-xs uppercase tracking-wider">
+                <th className="px-4 py-3 text-left w-12">Rank</th>
+                <th className="px-4 py-3 text-left">Address</th>
+                <th className="px-4 py-3 text-right">Balance</th>
+                <th className="px-4 py-3 text-right">Staked</th>
+                <th className="px-4 py-3 text-right">Total</th>
+                <th className="px-4 py-3 text-right">% of Supply</th>
+              </tr>
+            </thead>
+            <tbody>
+              {holdings.map((entry, i) => {
+                const known = KNOWN_ADDRESSES[entry.address];
+                const isGenesis = !!known;
+                const hasStake = BigInt(entry.stake || "0") > BigInt(0);
+                const pct = (() => {
+                  try {
+                    const total = BigInt(entry.total);
+                    const supply = BigInt(totalSupply || "1");
+                    if (supply === BigInt(0)) return "0.00%";
+                    return `${(Number(total * BigInt(10000) / supply) / 100).toFixed(2)}%`;
+                  } catch { return "—"; }
+                })();
+
+                return (
+                  <tr key={entry.address} className={`border-b border-border/50 transition-colors ${isGenesis ? "bg-yellow-500/[0.03] hover:bg-yellow-500/[0.06]" : "hover:bg-primary/5"}`}>
+                    <td className="px-4 py-3 font-[JetBrains_Mono] text-muted text-xs">#{i + 1}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <a href={`/address/${entry.address}`} className="font-[JetBrains_Mono] text-xs text-primary hover:underline">
+                          {truncateAddress(entry.address, 8)}
+                        </a>
+                        {known && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 px-1.5 py-0.5 text-[10px] text-yellow-400">
+                            {known.label}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className={`px-4 py-3 text-right font-[JetBrains_Mono] text-xs ${isGenesis ? "text-muted" : ""}`}>
+                      {formatCLAW(entry.balance)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-[JetBrains_Mono] text-xs">
+                      {hasStake ? <span className="text-purple-400">{formatCLAW(entry.stake)}</span> : <span className="text-muted/50">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`font-[JetBrains_Mono] font-bold text-xs ${isGenesis ? "text-muted" : ""}`}>
+                        {formatCLAW(entry.total)}
+                      </span>
+                      <span className="text-muted font-normal ml-1">CLAW</span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-[JetBrains_Mono] text-xs text-muted">{pct}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 }
