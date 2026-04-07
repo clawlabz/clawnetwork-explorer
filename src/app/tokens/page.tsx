@@ -194,8 +194,11 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
   // Calculate derived supply metrics
   const MAX_SUPPLY = BigInt("1000000000000000000"); // 1B CLAW in base units
   const totalSupplyBig = BigInt(totalSupplyStr);
+  const circulatingBig = BigInt(totalBalancesStr);
   const stakedBig = BigInt(totalStakesStr) + BigInt(totalUnbondingStr);
   const burnedBig = MAX_SUPPLY - totalSupplyBig;
+  const circulatingPct = totalSupplyBig > BigInt(0) ? (Number(circulatingBig * BigInt(10000) / totalSupplyBig) / 100).toFixed(1) : "0";
+  const stakingPct = totalSupplyBig > BigInt(0) ? (Number(stakedBig * BigInt(10000) / totalSupplyBig) / 100).toFixed(1) : "0";
 
   // Parse mining stats
   const activeMiners = miningData?.activeMiners as number | undefined || 0;
@@ -219,11 +222,17 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
           </div>
           <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
             <span className="text-sm text-muted">Circulating Supply</span>
-            <span className="font-mono font-semibold">{formatCLAW(totalBalancesStr)} CLAW</span>
+            <div className="text-right">
+              <span className="font-mono font-semibold">{formatCLAW(totalBalancesStr)} CLAW</span>
+              <span className="text-xs text-muted ml-2">({circulatingPct}%)</span>
+            </div>
           </div>
           <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
             <span className="text-sm text-muted">Staked Supply</span>
-            <span className="font-mono font-semibold">{formatCLAW(stakedBig.toString())} CLAW</span>
+            <div className="text-right">
+              <span className="font-mono font-semibold">{formatCLAW(stakedBig.toString())} CLAW</span>
+              <span className="text-xs text-muted ml-2">({stakingPct}%)</span>
+            </div>
           </div>
           <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
             <div className="flex items-center gap-2">
