@@ -565,7 +565,7 @@ export async function getTransactionReceipt(hash: string, network?: NetworkId): 
 }
 
 export async function getSupplyInfo(network?: NetworkId): Promise<Record<string, unknown>> {
-  return rpc<Record<string, unknown>>("claw_totalSupply", [], network);
+  return rpc<Record<string, unknown>>("claw_getSupplyInfo", [], network);
 }
 
 export async function getTransactionCount(network?: NetworkId): Promise<number | null> {
@@ -574,4 +574,8 @@ export async function getTransactionCount(network?: NetworkId): Promise<number |
   } catch {
     return null;
   }
+}
+
+export async function getTotalSupplyAudit(network?: NetworkId): Promise<Record<string, unknown>> {
+  return rpc<Record<string, unknown>>("claw_totalSupply", [], network);
 }

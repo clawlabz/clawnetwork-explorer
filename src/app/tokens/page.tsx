@@ -183,12 +183,12 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
   const miningData = miningStats.status === "fulfilled" ? (miningStats.value as Record<string, unknown>) : null;
   const txCountNum = txCount.status === "fulfilled" ? txCount.value : null;
 
-  // Parse supply data
-  const totalSupplyStr = supplyData?.totalSupply as string | undefined || "0";
-  const totalBalancesStr = supplyData?.totalBalances as string | undefined || "0";
-  const totalStakesStr = supplyData?.totalStakes as string | undefined || "0";
-  const totalUnbondingStr = supplyData?.totalUnbonding as string | undefined || "0";
-  const numHolders = supplyData?.numBalanceEntries as number | undefined || 0;
+  // Parse supply data — claw_getSupplyInfo returns snake_case fields
+  const totalSupplyStr = (supplyData?.total_supply ?? supplyData?.totalSupply) as string | undefined || "0";
+  const totalBalancesStr = (supplyData?.circulating_supply ?? supplyData?.totalBalances) as string | undefined || "0";
+  const totalStakesStr = (supplyData?.staked_supply ?? supplyData?.totalStakes) as string | undefined || "0";
+  const totalUnbondingStr = (supplyData?.unbonding_supply ?? supplyData?.totalUnbonding) as string | undefined || "0";
+  const numHolders = (supplyData?.num_balance_entries ?? supplyData?.numBalanceEntries) as number | undefined || 0;
 
   // Calculate derived supply metrics
   const MAX_SUPPLY = BigInt("1000000000000000000"); // 1B CLAW in base units

@@ -21,8 +21,15 @@ const ALLOWED_METHODS = new Set([
   "claw_getTokenHolders",
   "claw_getTransactionReceipt",
   "claw_totalSupply",
+  "claw_getSupplyInfo",
   "claw_getTransactionCount",
 ]);
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
 
 function parseNetwork(req: NextRequest): NetworkId {
   const param = req.nextUrl.searchParams.get("network");
@@ -30,12 +37,16 @@ function parseNetwork(req: NextRequest): NetworkId {
   return "mainnet";
 }
 
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
     if (!ALLOWED_METHODS.has(body?.method)) {
-      return NextResponse.json({ error: "Method not allowed" }, { status: 403 });
+      return NextResponse.json({ error: "Method not allowed" }, { status: 403, headers: CORS_HEADERS });
     }
 
     const network = parseNetwork(req);
@@ -48,8 +59,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(rpcBody),
     });
     const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: CORS_HEADERS });
   } catch {
-    return NextResponse.json({ error: { message: "RPC node unavailable" } }, { status: 502 });
+    return NextResponse.json({ error: { message: "RPC node unavailable" } }, { status: 502, headers: CORS_HEADERS });
   }
 }

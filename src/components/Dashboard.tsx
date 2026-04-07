@@ -8,6 +8,9 @@ import {
   getValidators,
   getRecentTransactions,
   getVersion,
+  getTransactionCount,
+  getSupplyInfo,
+  getMiningStats,
   truncateAddress,
   toHexAddress,
   parseBlockTransaction,
@@ -32,6 +35,8 @@ import {
   ArrowUpRight,
   AlertTriangle,
   AlertCircle,
+  Coins,
+  Lock,
 } from "lucide-react";
 import { useNetwork } from "./NetworkContext";
 import {
@@ -72,6 +77,8 @@ export function Dashboard() {
   const [validatorCount, setValidatorCount] = useState(0);
   const [recentTxs, setRecentTxs] = useState<ParsedTx[]>([]);
   const [networkAge, setNetworkAge] = useState("");
+  const [supplyInfo, setSupplyInfo] = useState<Record<string, unknown> | null>(null);
+  const [miningStats, setMiningStats] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,7 +89,7 @@ export function Dashboard() {
   fetchDataRef.current = async () => {
     try {
       const MAX_BLOCKS = 100;
-      const [h, height, versionData] = await Promise.all([getHealth(), getBlockNumber(), getVersion()]);
+      const [h, height, versionData, txCount] = await Promise.all([getHealth(), getBlockNumber(), getVersion(), getTransactionCount()]);
       setHealth(h);
       setVersionInfo(versionData);
 
@@ -132,8 +139,12 @@ export function Dashboard() {
       setChartData(allPoints.slice(-30));
 
       // Stats
-      const totalTx = sorted.reduce((sum, b) => sum + (b.transactions?.length || 0), 0);
-      setTotalTxns(totalTx);
+      if (txCount !== null && txCount !== undefined) {
+        setTotalTxns(txCount);
+      } else {
+        const totalTx = sorted.reduce((sum, b) => sum + (b.transactions?.length || 0), 0);
+        setTotalTxns(totalTx);
+      }
 
       // Rolling average from all fetched blocks (up to 100)
       if (sorted.length >= 2) {
@@ -186,6 +197,16 @@ export function Dashboard() {
           setRecentTxs(mapped);
         }
       } catch { /* ignore — will show empty */ }
+
+      // Fetch supply info and mining stats
+      try {
+        const [supply, mining] = await Promise.all([
+          getSupplyInfo().catch(() => null),
+          getMiningStats().catch(() => null),
+        ]);
+        setSupplyInfo(supply);
+        setMiningStats(mining);
+      } catch { /* ignore */ }
 
       setError(null);
     } catch (e) {
@@ -260,7 +281,7 @@ export function Dashboard() {
       {/* Hero Stats - Primary Metrics */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard icon={Layers} label="Block Height" value={height.toLocaleString()} color="text-primary" />
-        <StatCard icon={ArrowRightLeft} label="Transactions" value={totalTxns.toLocaleString()} subtext={`in last ${latestBlocks.length} blocks`} color="text-orange-500" />
+        <StatCard icon={ArrowRightLeft} label="Total Transactions" value={totalTxns.toLocaleString()} color="text-orange-500" />
         <StatCard icon={Zap} label="TPS" value={tps.toString()} subtext="transactions/sec" color="text-yellow-400" />
         <StatCard icon={Users} label="Validators" value={validatorCount.toString()} subtext="active" color="text-purple-400" />
       </div>
@@ -273,6 +294,45 @@ export function Dashboard() {
         <MiniStat icon={Timer} label="Network Age" value={networkAge || "—"} />
         <MiniStat icon={Cpu} label="Mempool" value={mempoolSize.toString()} />
       </div>
+
+      {/* Supply & Network Stats */}
+      {supplyInfo && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <StatCard
+            icon={Coins}
+            label="Total Supply"
+            value={formatCLAW(String(supplyInfo.total_supply || "0"))}
+            subtext="CLAW"
+            color="text-emerald-400"
+          />
+          <StatCard
+            icon={Coins}
+            label="Circulating"
+            value={formatCLAW(String(supplyInfo.circulating_supply || "0"))}
+            subtext="CLAW"
+            color="text-blue-400"
+          />
+          <StatCard
+            icon={Lock}
+            label="Staking Rate"
+            value={(() => {
+              const total = BigInt(String(supplyInfo.total_supply || "0"));
+              const staked = BigInt(String(supplyInfo.staked_supply || "0"));
+              if (total === BigInt(0)) return "0%";
+              return `${(Number(staked * BigInt(10000) / total) / 100).toFixed(1)}%`;
+            })()}
+            subtext={`${formatCLAW(String(supplyInfo.staked_supply || "0"))} CLAW staked`}
+            color="text-purple-400"
+          />
+          <StatCard
+            icon={Cpu}
+            label="Active Miners"
+            value={String(miningStats?.activeMiners ?? "—")}
+            subtext={`of ${miningStats?.totalMiners ?? "—"} total`}
+            color="text-amber-400"
+          />
+        </div>
+      )}
 
       {/* Network Status Bar */}
       <div className="flex items-center gap-4 rounded-xl border border-border bg-surface/30 px-5 py-3 flex-wrap">

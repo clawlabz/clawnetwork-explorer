@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { getBlockNumber, getBlock, getHealth, getValidators } from "@/lib/rpc";
+import { getBlockNumber, getBlock, getHealth, getValidators, formatCLAW } from "@/lib/rpc";
 import { Layers, Clock, Activity, ArrowRightLeft, Users } from "lucide-react";
+import { useNetwork } from "@/components/NetworkContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import {
@@ -32,7 +33,16 @@ interface ChartPoint {
   txCount: number;
 }
 
+interface DailyStats {
+  date: string;
+  tx_count: number;
+  transfer_volume: string;
+  unique_senders: number;
+  unique_receivers: number;
+}
+
 export default function StatsPage() {
+  const { network } = useNetwork();
   const [loading, setLoading] = useState(true);
   const [blockHeight, setBlockHeight] = useState(0);
   const [tps, setTps] = useState(0);
@@ -40,6 +50,7 @@ export default function StatsPage() {
   const [totalTxns, setTotalTxns] = useState(0);
   const [validatorCount, setValidatorCount] = useState(0);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
+  const [dailyData, setDailyData] = useState<DailyStats[]>([]);
 
   const fetchDataRef = useRef<(() => Promise<void>) | undefined>(undefined);
   const lastFetchedHeightRef = useRef<number>(-1);
@@ -129,6 +140,17 @@ export default function StatsPage() {
         const validators = new Set(blocks.map((b) => b.validator).filter(Boolean));
         setValidatorCount(validators.size);
       }
+
+      // Fetch daily stats
+      try {
+        const res = await fetch(`/api/stats/daily?network=${network}&days=90`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          setDailyData(json.data);
+        }
+      } catch {
+        // ignore - daily stats API may not be available yet
+      }
     } catch (e) {
       console.error("Failed to fetch stats:", e instanceof Error ? e.message : e);
     } finally {
@@ -141,7 +163,7 @@ export default function StatsPage() {
     const interval = setInterval(() => fetchDataRef.current?.(), 15000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [network]);
 
   if (loading) {
     return (
@@ -282,6 +304,147 @@ export default function StatsPage() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Daily Trend Charts */}
+      {dailyData.length > 0 ? (
+        <div className="space-y-6">
+          {/* Daily Transaction Volume */}
+          <div className="rounded-xl border border-border bg-surface/50 p-6">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-primary" />
+              Daily Transaction Volume ({dailyData.length} days)
+            </h2>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: "#888", fontSize: 11 }}
+                    tickFormatter={(v) => {
+                      const d = new Date(v);
+                      return `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")}`;
+                    }}
+                    stroke="#444"
+                  />
+                  <YAxis
+                    tick={{ fill: "#888", fontSize: 11 }}
+                    stroke="#444"
+                    label={{ value: "Transactions", angle: -90, position: "insideLeft", fill: "#888", fontSize: 12 }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#140E0A",
+                      border: "1px solid #2A1C14",
+                      borderRadius: "8px",
+                      color: "#fff",
+                      fontSize: 12,
+                    }}
+                    labelFormatter={(v) => `Date: ${v}`}
+                    formatter={(value) => [value, "Transactions"]}
+                  />
+                  <Line type="monotone" dataKey="tx_count" stroke="#F96706" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Daily Active Addresses */}
+          <div className="rounded-xl border border-border bg-surface/50 p-6">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Daily Active Addresses ({dailyData.length} days)
+            </h2>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={dailyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: "#888", fontSize: 11 }}
+                    tickFormatter={(v) => {
+                      const d = new Date(v);
+                      return `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")}`;
+                    }}
+                    stroke="#444"
+                  />
+                  <YAxis
+                    tick={{ fill: "#888", fontSize: 11 }}
+                    stroke="#444"
+                    label={{ value: "Unique Addresses", angle: -90, position: "insideLeft", fill: "#888", fontSize: 12 }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#140E0A",
+                      border: "1px solid #2A1C14",
+                      borderRadius: "8px",
+                      color: "#fff",
+                      fontSize: 12,
+                    }}
+                    labelFormatter={(v) => `Date: ${v}`}
+                    formatter={(value) => [value, "Addresses"]}
+                  />
+                  <Line type="monotone" dataKey="active_addresses" stroke="#00D084" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Daily Transfer Volume */}
+          <div className="rounded-xl border border-border bg-surface/50 p-6">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              Daily Transfer Volume ({dailyData.length} days)
+            </h2>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dailyData.map((d) => ({
+                  ...d,
+                  transfer_volume_claw: Number(BigInt(d.transfer_volume) / BigInt(1e9))
+                }))}>
+                  <defs>
+                    <linearGradient id="transferGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#00D084" stopOpacity={0.2} />
+                      <stop offset="100%" stopColor="#00D084" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fill: "#888", fontSize: 11 }}
+                    tickFormatter={(v) => {
+                      const d = new Date(v);
+                      return `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")}`;
+                    }}
+                    stroke="#444"
+                  />
+                  <YAxis
+                    tick={{ fill: "#888", fontSize: 11 }}
+                    stroke="#444"
+                    label={{ value: "CLAW", angle: -90, position: "insideLeft", fill: "#888", fontSize: 12 }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#140E0A",
+                      border: "1px solid #2A1C14",
+                      borderRadius: "8px",
+                      color: "#fff",
+                      fontSize: 12,
+                    }}
+                    labelFormatter={(v) => `Date: ${v}`}
+                    formatter={(value: unknown) => [`${Number(value ?? 0).toLocaleString()} CLAW`, "Transfer Volume"]}
+                  />
+                  <Area type="monotone" dataKey="transfer_volume_claw" stroke="#00D084" fill="url(#transferGradient)" fillOpacity={1} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border bg-surface/50 p-6 text-center">
+          <p className="text-sm text-muted">No daily data available yet</p>
+        </div>
+      )}
     </div>
     </main>
     <Footer />
