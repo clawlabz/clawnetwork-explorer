@@ -206,46 +206,58 @@ async function SupplyAndStatsSection({ network }: { network?: NetworkId }) {
 
   return (
     <div className="space-y-8 mb-8">
-      {/* Supply Overview Table */}
+      {/* Key Supply Metrics — Hero Cards */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="rounded-xl border border-border bg-surface/50 p-5">
+          <p className="text-xs text-muted uppercase tracking-wider mb-2">Circulating Supply</p>
+          <p className="text-xl font-bold text-primary">{formatCLAW(totalBalancesStr)}</p>
+          <p className="text-xs text-muted mt-1">CLAW · <span className="text-primary font-semibold">{circulatingPct}%</span> of total</p>
+        </div>
+        <div className="rounded-xl border border-border bg-surface/50 p-5">
+          <p className="text-xs text-muted uppercase tracking-wider mb-2">Staking Rate</p>
+          <p className="text-xl font-bold text-purple-400">{stakingPct}%</p>
+          <p className="text-xs text-muted mt-1">{formatCLAW(stakedBig.toString())} CLAW staked</p>
+        </div>
+        <div className="rounded-xl border border-border bg-surface/50 p-5">
+          <p className="text-xs text-muted uppercase tracking-wider mb-2">Total Supply</p>
+          <p className="text-xl font-bold">{formatCLAW(totalSupplyStr)}</p>
+          <p className="text-xs text-muted mt-1">CLAW · Max 1B</p>
+        </div>
+        <div className="rounded-xl border border-border bg-surface/50 p-5">
+          <p className="text-xs text-muted uppercase tracking-wider mb-2">Holders</p>
+          <p className="text-xl font-bold">{numHolders.toLocaleString()}</p>
+          <p className="text-xs text-muted mt-1">unique addresses</p>
+        </div>
+      </div>
+
+      {/* Supply Detail Table */}
       <div className="rounded-xl border border-border bg-surface/50 overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
-          <h2 className="text-lg font-bold">Supply Overview</h2>
+          <h2 className="text-lg font-bold">Supply Breakdown</h2>
         </div>
         <div className="divide-y divide-border/50">
-          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
+          <div className="flex items-center justify-between px-6 py-3">
             <span className="text-sm text-muted">Max Supply</span>
-            <span className="font-mono font-semibold">{formatCLAW(MAX_SUPPLY.toString())} CLAW</span>
+            <span className="font-mono text-sm">{formatCLAW(MAX_SUPPLY.toString())} CLAW</span>
           </div>
-          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
+          <div className="flex items-center justify-between px-6 py-3">
             <span className="text-sm text-muted">Total Supply</span>
-            <span className="font-mono font-semibold">{formatCLAW(totalSupplyStr)} CLAW</span>
+            <span className="font-mono text-sm">{formatCLAW(totalSupplyStr)} CLAW</span>
           </div>
-          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
-            <span className="text-sm text-muted">Circulating Supply</span>
-            <div className="text-right">
-              <span className="font-mono font-semibold">{formatCLAW(totalBalancesStr)} CLAW</span>
-              <span className="text-xs text-muted ml-2">({circulatingPct}%)</span>
-            </div>
+          <div className="flex items-center justify-between px-6 py-3">
+            <span className="text-sm text-muted">Circulating</span>
+            <span className="font-mono text-sm">{formatCLAW(totalBalancesStr)} CLAW <span className="text-xs text-muted">({circulatingPct}%)</span></span>
           </div>
-          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
-            <span className="text-sm text-muted">Staked Supply</span>
-            <div className="text-right">
-              <span className="font-mono font-semibold">{formatCLAW(stakedBig.toString())} CLAW</span>
-              <span className="text-xs text-muted ml-2">({stakingPct}%)</span>
-            </div>
+          <div className="flex items-center justify-between px-6 py-3">
+            <span className="text-sm text-muted">Staked + Unbonding</span>
+            <span className="font-mono text-sm">{formatCLAW(stakedBig.toString())} CLAW <span className="text-xs text-muted">({stakingPct}%)</span></span>
           </div>
-          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
+          <div className="flex items-center justify-between px-6 py-3">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted">Burned</span>
-              <a href="https://chain.clawlabz.xyz/whitepaper#tokenomics" target="_blank" rel="noopener noreferrer" className="text-xs text-primary/60 hover:text-primary transition-colors" title="30% of transaction fees are permanently burned. See Whitepaper §5 Tokenomics.">
-                Fee Burn 30% · Why?
-              </a>
+              <a href="https://chain.clawlabz.xyz/whitepaper#tokenomics" target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary/60 hover:text-primary">Fee Burn 30%</a>
             </div>
-            <span className="font-mono font-semibold text-red-400">{formatCLAW(burnedBig.toString())} CLAW</span>
-          </div>
-          <div className="flex items-center justify-between px-6 py-4 hover:bg-primary/5 transition-colors">
-            <span className="text-sm text-muted">Holders</span>
-            <span className="font-mono font-semibold">{numHolders.toLocaleString()}</span>
+            <span className="font-mono text-sm text-red-400">{formatCLAW(burnedBig.toString())} CLAW</span>
           </div>
         </div>
       </div>
