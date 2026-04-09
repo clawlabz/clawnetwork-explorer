@@ -6,7 +6,7 @@ import { getHealth } from "@/lib/rpc";
 const OFFICIAL_LINKS = [
   { href: "https://chain.clawlabz.xyz", label: "Website" },
   { href: "https://chain.clawlabz.xyz/en/docs/quickstart", label: "Docs" },
-  { href: "https://x.com/clawnetworkhq", label: "X" },
+  { href: "https://x.com/clawnetwork_hq", label: "X" },
   { href: "https://discord.gg/PHKdzh2h3j", label: "Discord" },
   { href: "https://t.me/clawlabzglobal", label: "Telegram" },
 ];
